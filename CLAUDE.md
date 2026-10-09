@@ -5,17 +5,16 @@ in it), then model/README.md.
 
 ## Where it stands
 
-- Novelty: not anticipated in CXL (patent and arXiv sweep on 2026-10-09); close prior art outside
-  CXL is Lustig and Martonosi (HPCA'13) and Callback (ISCA'15); closest in CXL is Intel US12455827
-  and US20250021228A1.
-- Significance: 1.5 to 1.7x lower handoff latency for small messages, but at most about 2% end to
-  end for AI serving and 1.2 to 1.4x for microsecond RPC. Too small for ISCA/MICRO/HPCA.
-- Target now: an IEEE Computer Architecture Letters paper framed around microsecond-scale
-  cross-host communication.
+- Novelty re-checked 2026-10-09: not anticipated in CXL. Cite and separate Micron US12645581B2,
+  Intel US11093398B2, US12455827, US20250021228A1, HPCA'13 (names timeouts as future work),
+  Callback ISCA'15, I-structures.
+- Calibrated SimPy model (model/parksim.py): 1.3 to 4x lower handoff, RPC and barrier latency;
+  polling waiters take up to 44% of a switched device's bandwidth, parked ones about 8%.
+- CAL letter draft: paper/parked_loads.tex (3 pages, compiles with tectonic).
 
 ## Next steps
 
-The three items under "Remaining work for a CAL letter" in PROJECT.md.
+The four author items under "Remaining work for a CAL letter" in PROJECT.md.
 
 ## Working rules (from the author)
 

@@ -1,9 +1,11 @@
 # Parked loads: full/empty synchronization for multi-host CXL memory
 
-Status (2026-10-09): passed the novelty gate in CXL (no paper or patent parks CXL.mem reads on
-full/empty state), failed the significance gate for a top conference (at most about 2% end to end
-for AI serving). Target: an IEEE Computer Architecture Letters paper framed around
-microsecond-scale cross-host communication.
+Status (2026-10-09): CAL letter draft ready (paper/parked_loads.tex, 3 pages). Novelty re-checked
+the same day: not anticipated in CXL; the closest new items are Micron US12645581B2 (device defers
+requests to busy lines) and Intel US11093398B2 (remote MONITOR/MWAIT); HPCA'13 already names
+timeouts as future work, so the claim rests on the CXL-specific design. A calibrated multi-host
+simulation replaced the analytical inputs: 1.3 to 4x lower handoff, RPC and barrier latency, and
+waiting threads stop consuming a pooled device's bandwidth. Still too small for ISCA/MICRO/HPCA.
 
 ## Idea
 
@@ -41,8 +43,8 @@ for many independent hosts on CXL, where credits, timeouts, failures and fairnes
 
 ## Motivation
 
-- Multi-host CXL systems already pay the polling cost: cMPI measures about 2.2 us per cross-host
-  ping-pong; Cxlalloc's allocator drops to about 1% of hardware-coherent throughput under
+- Multi-host CXL systems already pay the polling cost: cMPI measures 2.2 us per flushed access
+  (2.8x a cached one) and about 12 us per MPI ping-pong; HydraRPC measures 1.47 us per 64 B RPC; Cxlalloc's allocator drops to about 1% of hardware-coherent throughput under
   near-memory CAS; PNNL (MEMSYS'24) concludes hardware support is needed.
 - The device is where every host's requests meet, so it is the only place that sees both the
   waiting read and the releasing write.
@@ -86,12 +88,17 @@ outside shared CXL memory).
 
 ## Remaining work for a CAL letter
 
-1. Frame the paper around microsecond-scale cross-host communication.
-2. Specify the CXL-specific design points listed under Goal.
-3. Replace the analytical inputs with a small multi-host simulation, or calibrate against the
-   DaMoN'26 multi-host CXL measurements (DOI 10.1145/3789237.3809131).
+Done on 2026-10-09: framing (microsecond-scale cross-host communication), CXL-specific design points
+(credits, RwD bypass, 25 us bound, empty encoding, speculation, failures, fairness, table cost), and
+a calibrated multi-host simulation. Left for the author:
+1. Read the DaMoN'26 paper (DOI 10.1145/3789237.3809131, open access but blocked to scripts) and
+   add its numbers to the calibration if they differ.
+2. Complete and verify the bibliography (entries without authors in paper/parked_loads.tex).
+3. Check VAMOs (MICRO'26, 4 Nov) and the HPCA'27 list (2026-11-06) before submitting.
+4. Add affiliation and compile with the IEEE CAL template.
 
 ## Files
 
-model/ holds the significance model (`python3 model/run_model.py`) and its result table;
+model/ holds the first-order model (`python3 model/run_model.py`) and the discrete-event simulation
+(`parksim.py`, `experiments.py`, `run_contention.py`); paper/ holds the CAL letter and its figures;
 notes/idea-search-2026-10.md records the 16 ideas checked before this one was chosen.

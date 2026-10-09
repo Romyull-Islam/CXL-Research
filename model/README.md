@@ -14,8 +14,8 @@ decision, not as evidence for a paper.
 | Outstanding line requests per consumer | 48 | assumption, roughly a modern core's L2 miss queue |
 | Device bandwidth | 60 GB/s | Samsung CMM-B |
 
-Sanity check: the model's flag-polling ping-pong for small messages is 1.8 to 2.9 us across the
-three latency classes; cMPI (arXiv 2510.05476) measures about 2.2 us.
+Correction (2026-10-09): cMPI (arXiv 2510.05476) reports 2.2 us as a flushed memory access (Table 1),
+not a ping-pong; its MPI ping-pong is about 12 us. Use the simulation below for calibrated numbers.
 
 ## Result (2026-10-09)
 
@@ -39,3 +39,28 @@ three latency classes; cMPI (arXiv 2510.05476) measures about 2.2 us.
 Fails the significance gate for AI serving: at most about 2% end to end, because bulk data
 movement and compute dwarf the synchronization saved. Borderline only for microsecond-scale RPC
 with very short service times (1.2 to 1.4x). Not top-venue material as originally framed; see PROJECT.md.
+
+## Discrete-event simulation (2026-10-09)
+
+`parksim.py` (SimPy 4.1.2) models hosts with their own links to one device with shared ingress
+and egress ports, DRAM banks, acknowledged writes and a parked-read table with a 25 us bound (half
+the shortest CXL Root Port completion timeout, 50 us). `experiments.py` runs one-way handoffs,
+ping-pong, RPC, a 16-host barrier; `run_contention.py` adds tenant hosts that saturate the device.
+`test_parksim.py` checks the idle round trip, parking, the timeout path and table overflow.
+
+Calibration: idle load round trip 250 ns (expander), 280 ns (multi-headed device), 600 ns (switch)
+from Octopus (NSDI'26, Fig. 2) and CXL-CCL (ICS'26, 658 ns); extra cost per poll 50 ns (uncached
+load) or 1.4 us (flush plus fence: cMPI flushed 2.2 us vs cached 0.79 us). Sanity check: a
+zero-work 256 B RPC on the 280 ns device is 0.82 us with line polling and 2.0 us with flag polling;
+measured values are 1.2 us (Octopus) and 1.47 us (HydraRPC, ATC'24, 300 ns device).
+
+Results (model/results_latency.csv, results_contention.csv):
+- One-way, 64 B to 1 KB: parked 1.5 to 1.7x faster than the best software protocol at 50 ns poll
+  cost, 2.5 to 4x at 1.4 us; 16 KB: 1.2 to 1.9x.
+- RPC: 1.3 to 3.9x with no service time, 1.1 to 1.8x at 2 us, at most 1.2x at 10 us.
+- 16-host barrier: 1.4 to 3.9x.
+- Switched device with 4 streaming tenants (45.4 GB/s alone) and 512 waiting threads: tenants keep
+  41.6 GB/s with parked loads against 25.6 to 26.2 GB/s with polling; handoff 1.1 us against 2.7
+  to 6.5 us.
+
+Run: `python model/experiments.py`, `python model/run_contention.py`, `python paper/figures.py`.

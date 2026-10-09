@@ -9,3 +9,5 @@ build/
 m5out/
 *.log
 .DS_Store
+paper/*.pdf
+!paper/fig_*.pdf

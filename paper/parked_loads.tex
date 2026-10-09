@@ -1,0 +1,230 @@
+\documentclass[journal]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{siunitx}
+\sisetup{detect-all}
+
+% Bibliography entries without authors were not verified; complete them before submission.
+\begin{document}
+
+\title{Parked Loads: Memory-Side Waiting\\for Multi-Host CXL Synchronization}
+
+\author{Romyull~Islam% <- affiliation to be added
+\thanks{Manuscript draft, October 2026.}}
+
+\markboth{IEEE Computer Architecture Letters (draft)}{Islam: Parked Loads}
+
+\maketitle
+
+\begin{abstract}
+Hosts that share a CXL memory device have no cross-host hardware coherence, or only a small
+coherent region, so they synchronize by flushing and polling. Every poll costs a full device round
+trip, plus a cache flush of about \SI{2}{\micro\second} on today's devices, and many polling hosts
+steal device bandwidth from everyone else. We propose \emph{parked loads}: lines in a
+synchronization region carry a full/empty bit, and the device holds a read of an empty line until
+another host's write fills it, answering \emph{empty} before the host's completion timeout. We
+show how the idea fits CXL.mem's credit, ordering and timeout rules, and evaluate it with a
+discrete-event model calibrated to published multi-host CXL measurements. Parked loads cut
+one-way handoff latency by 1.5 to 1.7$\times$ against the best polling scheme when a poll is cheap
+and by 2.5 to 4$\times$ when it needs a flush, cut a 16-host barrier by 1.4 to 3.9$\times$, and
+with 512 waiting threads leave 41.6 instead of 26.2\,GB/s of a switched device to other tenants.
+\end{abstract}
+
+\begin{IEEEkeywords}
+CXL, memory pooling, synchronization, full/empty bits, multi-host shared memory
+\end{IEEEkeywords}
+
+\section{Introduction}
+CXL 2.0 switches and multi-headed devices let 2 to 16 hosts load and store the same memory. CXL
+3.x adds back-invalidation (BI) for hardware coherence, but deployments keep the coherent region
+small or absent, and shared memory exposed as HDM-H supports only software coherence~\cite{cxl3}.
+Cross-host communication therefore runs on software protocols: a producer writes a message and a
+flag, the consumer flushes its cached copy and re-reads the flag until it changes. Measured costs
+are high. On an FPGA multi-headed device a flushed access takes \SI{2.2}{\micro\second}, 2.8$\times$
+a cached one, and \texttt{clflush} plus fence costs 2 to \SI{3}{\micro\second}~\cite{cmpi}; a
+64\,B RPC round trip takes \SI{1.47}{\micro\second} on a \SI{300}{\nano\second} device~\cite{hydrarpc};
+a switch adds at least \SI{220}{\nano\second} per access~\cite{octopus}, and loaded latency rises
+from 230 to \SI{1624}{\nano\second} under contention~\cite{memchannel}.
+
+Polling has two costs. The waiter learns of the write only on its next poll, after a full device
+round trip and, with a flush, microseconds later. And each poll is a device access, so many waiting
+threads consume bandwidth that other tenants of a shared pool need. The device is the only place
+that sees both the waiting read and the releasing write, so it can answer the read at the moment the
+write lands. This is the full/empty idea of HEP and the Tera MTA~\cite{tera} and of
+I-structures~\cite{istructures}, which queued reads of empty locations in memory. What is new is
+fitting it to a fabric where independent hosts, credits, completion timeouts and failures are part
+of the protocol.
+
+This letter (1) specifies parked loads for CXL.mem, (2) shows they satisfy the protocol's forward
+progress, ordering and timeout rules with a small device table, and (3) quantifies latency,
+barrier and bandwidth gains with a calibrated multi-host model.
+
+\section{Parked loads}
+\textbf{Synchronization region.} The fabric manager marks an HDM range as a synchronization region.
+The device keeps one full/empty bit per 64\,B line, in SRAM for small regions (\SI{128}{\kilo\byte}
+covers \SI{64}{\mega\byte}) or in spare metadata bits. A store to the region writes the data, sets the
+line \emph{full} and releases every read parked on it. A read of a full line is answered normally;
+a \emph{consuming} read also sets the line empty, which gives single-consumer queues.
+
+\textbf{Parking and credits.} A read of an empty line is moved from the request queue into a parked
+table keyed by line address. CXL returns a request credit when the receiver has freed the buffer
+holding the message~\cite{cxl3}, so parking frees the credit and other requests flow. Responses
+need no device credit: NDR and DRS buffers are preallocated at the requester~\cite{cxl3}. The cost
+of a parked read is therefore one host-side tracker, the same as any outstanding load.
+
+\textbf{Ordering and forward progress.} The releasing write travels on the RwD channel, which must
+pass the request channel~\cite{cxl3}; a parked read never sits in the request queue, so it cannot
+block the write that frees it. CXL places no ordering between the Req, RwD, NDR and DRS classes or
+between addresses, so answering a parked read after later requests is legal. The device already
+holds reads in one case: a read to a line with an outstanding BI snoop waits for the
+response~\cite{cxl3}.
+
+\textbf{Bound and the empty response.} If a read stays parked past the Root Port's completion
+timeout, the Root Port synthesizes a poisoned response and isolates the whole port~\cite{cxl3}. The
+timeout is programmable from \SI{50}{\micro\second}, so the device answers every parked read within
+$\tau=\SI{25}{\micro\second}$. CXL has no response that means \emph{not yet}: DRS carries only
+MemData and MemData-NXM, and poison is logged as an error. We propose a MemData response with a
+reserved metadata value (HDM-H metadata usage is host defined) or a new DRS opcode; software that
+receives \emph{empty} re-issues the parked load, so a long wait costs one access per
+\SI{25}{\micro\second} instead of one per round trip. A full table also answers \emph{empty} at
+once, which degrades gracefully to polling.
+
+\textbf{Host side.} Parked and consuming loads must not be issued speculatively: the core issues
+them from uncached accesses or a dedicated instruction, as Callback does for its blocking
+read~\cite{callback}. A parked load stalls only its thread, which would otherwise spin; pairing it
+with a light sleep (UMWAIT-style) saves power.
+
+\textbf{Failures and fairness.} When a host fails or its logical device is reset, the device drops
+that host's parked entries. If a producer fails, waiters see \emph{empty} after $\tau$ and apply
+their usual lease logic. Global Persistent Flush answers all parked reads empty before flushing.
+Wake-up is FIFO per line, and a consuming read wakes one waiter while the rest re-park.
+
+\textbf{Cost.} An entry holds the line address, the requester's port and tag and a timer, under
+16\,B; 4,096 entries take \SI{64}{\kilo\byte} of SRAM. Writes probe the table by line address, a
+hash lookup on the write path.
+
+\textbf{Prior art.} Lustig and Martonosi hold GPU reads until a CPU write in one GPU's memory
+controller and name timeouts or NACKs as future work~\cite{lustig}; Callback blocks on-chip reads
+in a directory~\cite{callback}; I-structures queue reads in dataflow memory~\cite{istructures}.
+None faces independent hosts, credits, a completion timeout tied to port isolation, or a missing
+response encoding. Intel's patents queue contended atomics and keyed lock requests in a CXL
+device~\cite{intelq,intellock} or forward MONITOR/MWAIT to a remote home node~\cite{intelmwait};
+Micron's device defers requests to busy cache lines~\cite{micron}. None holds a plain read until
+another host writes the data.
+
+\section{Evaluation}
+\textbf{Model.} We use a discrete-event model in SimPy~\cite{simpy}. Each host has a link to the
+device with a flight time and \SI{32}{\giga\byte\per\second} per direction; the device has shared
+ingress and egress ports of \SI{64}{\giga\byte\per\second}, 32 DRAM banks of \SI{45}{\nano\second}
+and a 4,096-entry parked table. Messages are serialized on the host link, cross the link and are
+serialized again at the device port, so polling hosts contend there. A core keeps 48 line requests
+in flight. Writes are acknowledged, so a fence waits for completions. We calibrate the idle load
+round trip to \SI{250}{\nano\second} (expander), \SI{280}{\nano\second} (multi-headed device, MHD) and
+\SI{600}{\nano\second} (switch)~\cite{octopus,cccl}, and set the extra cost per poll to
+\SI{50}{\nano\second} (uncached load) or \SI{1.4}{\micro\second} (flush plus fence, the gap
+between flushed and cached access in~\cite{cmpi}). Compared protocols: \emph{flag poll} (payload,
+fence, flag; the consumer polls the flag), \emph{line poll} (every line carries a sequence number;
+the consumer re-reads lines not yet valid, the fastest software scheme), \emph{coherent spin}
+(the flag sits in a BI-coherent region; the consumer reloads after the invalidation) and
+\emph{parked}. Sanity check: a zero-work 256\,B RPC on the \SI{280}{\nano\second} device takes
+\SI{0.82}{\micro\second} with line polling and \SI{2.0}{\micro\second} with flag polling, bracketing
+the measured \SI{1.2}{\micro\second}~\cite{octopus} and \SI{1.47}{\micro\second}~\cite{hydrarpc}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_latency.pdf}
+\caption{One-way handoff latency through a switch (\SI{600}{\nano\second} idle round trip), consumer
+already waiting.}
+\label{fig:lat}
+\end{figure}
+
+\textbf{Handoff latency.} A parked consumer receives each line half a round trip after it lands,
+while a poller adds the time to its next poll plus a full read (Fig.~\ref{fig:lat}). Against the
+best software protocol, parked loads cut one-way latency by 1.5 to 1.7$\times$ for 64\,B to 1\,KB
+messages when a poll is cheap and by 2.5 to 4$\times$ when it needs a flush; for 16\,KB messages the
+transfer dominates and the gain falls to 1.2 to 1.9$\times$. With a flush in every poll, coherent
+spinning becomes the best software scheme for small messages, but it still needs the invalidation,
+a reload and the payload read, and BI hardware that pools rarely enable.
+
+\begin{table}[t]
+\centering
+\caption{Speedup of parked loads over the best software protocol (poll cost \SI{50}{\nano\second} /
+\SI{1.4}{\micro\second}).}
+\label{tab:e2e}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccc}
+\toprule
+ & expander & MHD & switch \\
+\midrule
+RPC, 256\,B, 0 service & 1.38 / 3.89 & 1.41 / 3.90 & 1.32 / 2.97 \\
+RPC, \SI{2}{\micro\second} service & 1.15 / 1.60 & 1.11 / 1.65 & 1.11 / 1.76 \\
+RPC, \SI{10}{\micro\second} service & 1.03 / 1.14 & 1.03 / 1.16 & 1.08 / 1.20 \\
+Barrier, 16 hosts & 1.44 / 3.85 & 1.39 / 3.61 & 1.50 / 3.03 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{RPC and barriers.} Table~\ref{tab:e2e} shows end-to-end gains. For RPCs the gain shrinks
+as service time grows: 1.3 to 3.9$\times$ for zero-work calls, 1.1 to 1.8$\times$ at
+\SI{2}{\micro\second} and at most 1.2$\times$ at \SI{10}{\micro\second}. A barrier benefits more
+than a single handoff because all 15 waiters park on one release line, and one write wakes them
+together.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_contention.pdf}
+\caption{Switched device shared by 4 streaming tenant hosts and up to 512 waiting threads on 16
+other hosts, each waiting for 64\,B messages that arrive after \SI{20}{\micro\second} on average.}
+\label{fig:cont}
+\end{figure}
+
+\textbf{Shared-device contention.} Fig.~\ref{fig:cont} places waiting threads next to four tenant
+hosts that stream reads and alone reach \SI{45.4}{\giga\byte\per\second}. With polling, every
+waiting thread issues a device access per round trip; at 512 waiters the tenants drop to 25.6
+(flag) and \SI{26.2}{\giga\byte\per\second} (line poll), and the queues this builds raise the
+handoff to 6.5 and \SI{2.7}{\micro\second}. Parked waiters issue one access per message, the tenants
+keep \SI{41.6}{\giga\byte\per\second} and the handoff stays at \SI{1.1}{\micro\second}, 2.5$\times$
+faster than the best poller.
+
+\textbf{Limitations.} The results come from a model, not hardware. Real BI handoff latency has not
+been published, so coherent spin is modeled from its message flow. The poll cost spans 50\,ns to
+\SI{1.4}{\micro\second} across devices, which is why we report both ends. Workloads with
+millisecond service times, such as AI collectives, gain little: the handoff is a small share of
+their time.
+
+\section{Conclusion}
+A CXL memory device is the one point that sees a waiting read and the write that satisfies it.
+Holding the read there, bounded below the completion timeout and answered \emph{empty} when the
+bound expires, fits CXL.mem's credit, ordering and timeout rules with a 64\,KB table. It speeds up
+microsecond-scale cross-host communication by 1.3 to 4$\times$ and stops waiting threads from
+consuming a pooled device's bandwidth.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{99}\small
+\bibitem{cxl3} CXL Consortium, ``Compute Express Link Specification, Revision 3.0,'' 2022, Secs.
+2.4.4, 3.2.2.2, 3.3.3, 3.3.11, 8.2.4.23.1 and 12.3.2.
+\bibitem{cmpi} ``cMPI: Using CXL memory sharing for MPI one-sided and two-sided inter-node
+communications,'' in \emph{Proc. SC}, 2025, arXiv:2510.05476.
+\bibitem{hydrarpc} ``HydraRPC: RPC in the CXL era,'' in \emph{Proc. USENIX ATC}, 2024.
+\bibitem{octopus} ``Octopus,'' in \emph{Proc. NSDI}, 2026, arXiv:2501.09020.
+\bibitem{memchannel} ``MemChannel,'' in \emph{Proc. NSDI}, 2026, arXiv:2608.21731.
+\bibitem{cccl} ``CXL-CCL: Collective communication over CXL shared memory,'' in \emph{Proc. ICS},
+2026, arXiv:2602.22457.
+\bibitem{tera} R. Alverson \emph{et al.}, ``The Tera computer system,'' in \emph{Proc. ICS}, 1990.
+\bibitem{istructures} Arvind, R. S. Nikhil and K. Pingali, ``I-structures: Data structures for
+parallel computing,'' \emph{ACM TOPLAS}, vol. 11, no. 4, pp. 598--632, 1989.
+\bibitem{lustig} D. Lustig and M. Martonosi, ``Reducing GPU offload latency via fine-grained CPU-GPU
+synchronization,'' in \emph{Proc. HPCA}, 2013.
+\bibitem{callback} A. Ros and S. Kaxiras, ``Callback: Efficient synchronization without
+invalidation with a directory just for spin-waiting,'' in \emph{Proc. ISCA}, 2015.
+\bibitem{intelq} D. Das Sharma and R. Blankenship (Intel), US Patent 12,455,827 B2, 2025.
+\bibitem{intellock} Intel, ``Locking hardware for a shared memory,'' US Patent Application
+2025/0021228 A1, 2025.
+\bibitem{intelmwait} Intel, US Patent 11,093,398 B2 (remote memory monitor and wait), 2021.
+\bibitem{micron} D. Brewer and R. Walker, ``Synchronized request handling at a memory device,'' US
+Patent 12,645,581 B2, 2026.
+\bibitem{simpy} SimPy discrete-event simulation for Python, version 4.1.2, https://simpy.readthedocs.io.
+\end{thebibliography}
+
+\end{document}

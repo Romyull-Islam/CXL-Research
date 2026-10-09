@@ -11,12 +11,22 @@ producer's write fills it. The idea comes from the HEP (1978) and Tera MTA machi
 I-structures; CXL brings it back because the memory controller now lives in the device, where
 every host's requests meet.
 
-Status: idea checked and parked. Novel in CXL, but the significance model (model/) shows too little
-gain for a top venue; see the status at the top of PROJECT.md.
+Status: IEEE CAL letter draft in paper/ (3 pages). Novel in CXL as of 2026-10-09; the gain (1.3 to
+4x on microsecond-scale handoffs, RPCs and barriers) is too small for a top conference. See
+PROJECT.md for the author's remaining items.
 
 ## Layout
 
     PROJECT.md                       everything: idea, gap, goal, motivation, related work, evidence, plan
-    model/                           first-order significance model and its result
+    model/                           first-order model, SimPy multi-host simulation and results
+    paper/                           CAL letter (parked_loads.tex) and figures
     notes/idea-search-2026-10.md     the 16 ideas checked on 2026-10-08 and why this one was chosen
     chat/                            full conversation that produced the idea (not tracked by git)
+
+## Run
+
+    python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+    python3 -m pytest model/test_parksim.py     simulator checks
+    python3 model/experiments.py                latency, RPC and barrier results
+    python3 model/run_contention.py             waiters sharing a switched device with tenants
+    python3 paper/figures.py && (cd paper && tectonic parked_loads.tex)
