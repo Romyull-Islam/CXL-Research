@@ -7,10 +7,11 @@ in it), then model/README.md.
 
 - Novelty re-checked 2026-10-09: not anticipated in CXL. Cite and separate Micron US12645581B2,
   Intel US11093398B2, US12455827, US20250021228A1, HPCA'13 (names timeouts as future work),
-  Callback ISCA'15, I-structures.
+  Callback ISCA'15, I-structures, IBM CLT patent, Microsoft conditional reads, SSB, QOLB.
+  The letter's claim is four protocol-safety rules for parking in CXL, not full/empty bits.
 - Calibrated SimPy model (model/parksim.py): 1.3 to 4x lower handoff, RPC and barrier latency;
   polling waiters take up to 44% of a switched device's bandwidth, parked ones about 8%.
-- CAL letter draft: paper/parked_loads.tex (3 pages, compiles with tectonic).
+- CAL letter draft: paper/parked_loads.tex (4 pages, compiles with tectonic).
 
 ## Next steps
 

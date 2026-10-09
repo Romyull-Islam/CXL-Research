@@ -1,7 +1,9 @@
 # Parked loads: full/empty synchronization for multi-host CXL memory
 
-Status (2026-10-09): CAL letter draft ready (paper/parked_loads.tex, 3 pages). Novelty re-checked
-the same day: not anticipated in CXL; the closest new items are Micron US12645581B2 (device defers
+Status (2026-10-09): CAL letter draft ready (paper/parked_loads.tex, 4 pages, "Parked Loads:
+Protocol-Safe Wait-Until-Written Reads for Multi-Host CXL Memory"). Novelty re-checked the same
+day: not anticipated in CXL; a second search added IBM's CLT patent, Microsoft's conditional-read
+patent, SSB and QOLB as prior art to cite and separate; the closest new items are Micron US12645581B2 (device defers
 requests to busy lines) and Intel US11093398B2 (remote MONITOR/MWAIT); HPCA'13 already names
 timeouts as future work, so the claim rests on the CXL-specific design. A calibrated multi-host
 simulation replaced the analytical inputs: 1.3 to 4x lower handoff, RPC and barrier latency, and
@@ -94,7 +96,7 @@ a calibrated multi-host simulation. Left for the author:
 1. Optional: read the full DaMoN'26 paper in a browser (DOI 10.1145/3789237.3809131; open access but
    blocked to scripts). Its verified abstract is already cited in the letter; check its
    write-visibility numbers against the 1.4 us poll cost used in the model.
-2. Bibliography: done (all 20 entries verified, paper/p3.bib).
+2. Bibliography: done (24 entries verified, paper/p3.bib).
 3. Check VAMOs (MICRO'26, 4 Nov) and the HPCA'27 list (2026-11-06) before submitting.
 4. Add affiliation and compile with the IEEE CAL template.
 

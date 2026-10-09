@@ -8,27 +8,29 @@
 
 \begin{document}
 
-\title{Parked Loads: Memory-Side Waiting\\for Multi-Host CXL Synchronization}
+\title{Parked Loads: Protocol-Safe Wait-Until-Written\\Reads for Multi-Host CXL Memory}
 
 \author{Romyull~Islam% <- affiliation to be added
 \thanks{Manuscript draft, October 2026.}}
 
-\markboth{IEEE Computer Architecture Letters (draft)}{Islam: Parked Loads}
+\markboth{IEEE Computer Architecture Letters (draft)}{Islam: Parked Loads for Multi-Host CXL Memory}
 
 \maketitle
 
 \begin{abstract}
 Hosts that share a CXL memory device have no cross-host hardware coherence, or only a small
-coherent region, so they synchronize by flushing and polling. Every poll costs a full device round
-trip, plus a cache flush of about \SI{2}{\micro\second} on today's devices, and many polling hosts
-steal device bandwidth from everyone else. We propose \emph{parked loads}: lines in a
-synchronization region carry a full/empty bit, and the device holds a read of an empty line until
-another host's write fills it, answering \emph{empty} before the host's completion timeout. We
-show how the idea fits CXL.mem's credit, ordering and timeout rules, and evaluate it with a
-discrete-event model calibrated to published multi-host CXL measurements. Parked loads cut
-one-way handoff latency by 1.5 to 1.7$\times$ against the best polling scheme when a poll is cheap
-and by 2.5 to 4$\times$ when it needs a flush, cut a 16-host barrier by 1.4 to 3.9$\times$, and
-with 512 waiting threads leave 41.6 instead of 26.2\,GB/s of a switched device to other tenants.
+coherent region, so they synchronize by flushing and polling. Each poll costs a device round trip,
+plus a flush of microseconds on today's devices, and the polls of many waiting threads consume the
+bandwidth that other tenants of a memory pool need. Holding a read in memory until the data is
+written is an old idea (full/empty bits, conditional loads with timeout), but no one has shown that
+a CXL device can do it safely: hosts fail independently, request credits are finite, and a read
+that outlives the Root Port's completion timeout isolates the whole port. We show that a device can
+park a plain CXL.mem read of an empty line within the protocol's credit, ordering and timeout
+rules, answer it when another host's write lands, and bound it with an explicit \emph{empty}
+reply. In a discrete-event model calibrated to published multi-host CXL measurements, parked loads
+cut one-way handoff latency by 1.5 to 4$\times$, RPC and 16-host barrier latency by up to
+3.9$\times$, and, with 512 waiting threads on a switched device, cut the bandwidth taken from other
+tenants from 42--44\% to 8\%.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -53,14 +55,21 @@ Polling has two costs. The waiter learns of the write only on its next poll, aft
 round trip and, with a flush, microseconds later. And each poll is a device access, so many waiting
 threads consume bandwidth that other tenants of a shared pool need. The device is the only place
 that sees both the waiting read and the releasing write, so it can answer the read at the moment the
-write lands. This is the full/empty idea of HEP and the Tera MTA~\cite{tera} and of
-I-structures~\cite{istructures}, which queued reads of empty locations in memory. What is new is
-fitting it to a fabric where independent hosts, credits, completion timeouts and failures are part
-of the protocol.
+write lands. Holding a read in memory until it can be satisfied is not new: HEP and the Tera
+MTA~\cite{tera} and I-structures~\cite{istructures} queued reads of empty locations, and IBM's
+conditional load with timeout holds a load in a memory controller and answers it when a store
+arrives or a timer expires~\cite{ibmclt}. We do not claim the waiting primitive. We claim that it
+can be made safe on CXL.mem, which no prior design faces: the waiter and the writer are independent
+hosts behind a switch or a multi-headed device, request credits are finite, the read must not
+outlive a completion timeout whose expiry isolates the port, the protocol has no response that means
+\emph{not yet}, and hosts and device heads fail separately.
 
-This letter (1) specifies parked loads for CXL.mem, (2) shows they satisfy the protocol's forward
-progress, ordering and timeout rules with a small device table, and (3) quantifies latency,
-barrier and bandwidth gains with a calibrated multi-host model.
+This letter makes three contributions: (1) four rules under which a CXL device parks a plain
+CXL.mem read without breaking forward progress, ordering or timeouts, and an encoding for the
+\emph{empty} reply that needs no new host hardware beyond decoding it; (2) the device, host and
+failure design around them, with a table cost of \SI{64}{\kilo\byte}; (3) a calibrated multi-host
+model showing the latency gain and the fabric bandwidth that polling waiters take from other
+tenants of a shared device, which prior work does not quantify.
 
 \section{Parked loads}
 \textbf{Synchronization region.} The fabric manager marks an HDM range as a synchronization region.
@@ -69,23 +78,25 @@ covers \SI{64}{\mega\byte}) or in spare metadata bits. A store to the region wri
 line \emph{full} and releases every read parked on it. A read of a full line is answered normally;
 a \emph{consuming} read also sets the line empty, which gives single-consumer queues.
 
-\textbf{Parking and credits.} A read of an empty line is moved from the request queue into a parked
+\textbf{Rule 1: parking frees the request credit.} A read of an empty line is moved from the request queue into a parked
 table keyed by line address. CXL returns a request credit when the receiver has freed the buffer
 holding the message~\cite{cxl3}, so parking frees the credit and other requests flow. Responses
 need no device credit: NDR and DRS buffers are preallocated at the requester~\cite{cxl3}. The cost
 of a parked read is therefore one host-side tracker, the same as any outstanding load.
 
-\textbf{Ordering and forward progress.} The releasing write travels on the RwD channel, which must
+\textbf{Rule 2: the releasing write is never blocked.} The releasing write travels on the RwD channel, which must
 pass the request channel~\cite{cxl3}; a parked read never sits in the request queue, so it cannot
 block the write that frees it. CXL places no ordering between the Req, RwD, NDR and DRS classes or
 between addresses, so answering a parked read after later requests is legal. The device already
 holds reads in one case: a read to a line with an outstanding BI snoop waits for the
 response~\cite{cxl3}.
 
-\textbf{Bound and the empty response.} If a read stays parked past the Root Port's completion
-timeout, the Root Port synthesizes a poisoned response and isolates the whole port~\cite{cxl3}. The
-timeout is programmable from \SI{50}{\micro\second}, so the device answers every parked read within
-$\tau=\SI{25}{\micro\second}$. CXL has no response that means \emph{not yet}: DRS carries only
+\textbf{Rule 3: every parked read is answered before the Root Port times out.} If a read stays
+parked past the Root Port's completion timeout, the Root Port synthesizes a poisoned response and
+isolates the whole port~\cite{cxl3}. The timeout is programmable from \SI{50}{\micro\second}, so
+the device answers every parked read within $\tau=\SI{25}{\micro\second}$.
+
+\textbf{Rule 4: \emph{empty} is an explicit reply.} CXL has no response that means \emph{not yet}: DRS carries only
 MemData and MemData-NXM, and poison is logged as an error. We propose a MemData response with a
 reserved metadata value (HDM-H metadata usage is host defined) or a new DRS opcode; software that
 receives \emph{empty} re-issues the parked load, so a long wait costs one access per
@@ -106,14 +117,19 @@ Wake-up is FIFO per line, and a consuming read wakes one waiter while the rest r
 16\,B; 4,096 entries take \SI{64}{\kilo\byte} of SRAM. Writes probe the table by line address, a
 hash lookup on the write path.
 
-\textbf{Prior art.} Lustig and Martonosi hold GPU reads until a CPU write in one GPU's memory
-controller and name timeouts or NACKs as future work~\cite{lustig}; Callback blocks on-chip reads
-in a directory~\cite{callback}; I-structures queue reads in dataflow memory~\cite{istructures}.
-None faces independent hosts, credits, a completion timeout tied to port isolation, or a missing
-response encoding. Intel's patents queue contended atomics and keyed lock requests in a CXL
-device~\cite{intelq,intellock} or forward MONITOR/MWAIT to a remote home node~\cite{intelmwait};
-Micron's device defers requests to busy cache lines~\cite{micron}. None holds a plain read until
-another host writes the data.
+\textbf{Prior art.} Memory-side waiting is old. IBM's conditional load with timeout keeps pending
+loads in a memory-controller table with a timer and replies when a store satisfies the condition or
+the timer (0.5\,\si{\micro\second} in its example) expires~\cite{ibmclt}; Microsoft's conditional
+synchronization adds a similar memory-side timeout~\cite{msftcond}; the Synchronization State
+Buffer keeps full/empty state only for locations being synchronized~\cite{ssb}; QOLB queues waiters
+in hardware~\cite{qolb}; Lustig and Martonosi hold GPU reads until a CPU write and name timeouts as
+future work~\cite{lustig}; Callback blocks on-chip reads in a directory~\cite{callback}. All of them
+live inside one machine, where the waiter and the writer share a memory controller and no fabric
+timeout or credit rule applies. In CXL, Intel's patents queue contended atomics and keyed lock
+requests in a device~\cite{intelq,intellock} or forward MONITOR/MWAIT to a remote home
+node~\cite{intelmwait}, and Micron's device defers requests to busy cache lines~\cite{micron}; none
+holds a plain read until another host writes the data, and none derives the bound from the Root
+Port timeout.
 
 \section{Evaluation}
 \textbf{Model.} We use a discrete-event model in SimPy~\cite{simpy}. Each host has a link to the
@@ -203,10 +219,11 @@ their time.
 
 \section{Conclusion}
 A CXL memory device is the one point that sees a waiting read and the write that satisfies it.
-Holding the read there, bounded below the completion timeout and answered \emph{empty} when the
-bound expires, fits CXL.mem's credit, ordering and timeout rules with a 64\,KB table. It speeds up
-microsecond-scale cross-host communication by 1.3 to 4$\times$ and stops waiting threads from
-consuming a pooled device's bandwidth.
+Memory-side waiting is old; what this letter adds is that a multi-host CXL device can do it within
+CXL.mem's credit, ordering and timeout rules, with a 64\,KB table and an explicit \emph{empty}
+reply bounded below the Root Port timeout. It speeds up microsecond-scale cross-host communication
+by 1.3 to 4$\times$ and keeps waiting threads from consuming a pooled device's bandwidth, a cost of
+polling that grows with every host added to the pool.
 
 \bibliographystyle{IEEEtran}
 \bibliography{p3}
