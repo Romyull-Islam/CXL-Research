@@ -1,0 +1,11 @@
+# Private working notes; remove this line to publish the transcript
+chat/
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+m5out/
+*.log
+.DS_Store
