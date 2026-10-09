@@ -1,8 +1,8 @@
 # Sizing CXL memory tiers for test-time-scaling LLM workloads
 
-Status (2026-10-09): early. Novelty scan: crowded for ISCA/MICRO/HPCA without a mechanism and
-real-system validation; partly open for a top journal (IEEE TC, IEEE TPDS, ACM TACO) or an IEEE
-Computer Architecture Letters paper.
+Status (2026-10-09): gate 2 failed for the preemption angle; recommendation is to stop this project
+as a CXL paper (findings/02). Novelty scan: crowded for ISCA/MICRO/HPCA; the CXL-specific part (a
+tier for preempted KV) is already shipped with host DRAM, and its measured value is small.
 
 ## Idea
 
@@ -57,27 +57,52 @@ target.
 - Tiering long reasoning KV: OasisKV (2608.08097, sparse-attention staging from host memory); "Not
   All Thoughts Need HBM" (2605.09490, four-tier placement for one long chain of thought).
 - KV compression for reasoning (saturated): R-KV (NeurIPS'25), ThinKV (ICLR'26), GrowPage, KARA.
-- Generic CXL KV work (no test-time focus): TraCT, SAC, CXL-SpecKV, Beluga, Photonic-CXL.
+- Generic CXL KV work (no test-time focus): TraCT, SAC, CXL-SpecKV, Beluga, Photonic-CXL; Tang et
+  al. (NeurIPS'24 ML for Systems, CXL-to-GPU bandwidth on par with host DRAM); Samsung CMM-D pool
+  white paper (June 2026).
+- Preempted or paused KV kept off-GPU (the angle tested in findings/02): vLLM 0.19+ CPU offloading
+  restores preempted requests; vLLM-Ascend PreemptOffloadConnector; SGLang retraction backup;
+  InferCept (ICML'24, discard/swap/preserve); CacheOPT (2503.13773); FastServe; EfficientAgent
+  (2609.33762, sizes a host tier for paused agents' KV). Preemption models: "Service-Induced
+  Congestion in Memory-Constrained LLM Serving" (2606.15555); measured preemption in reasoning RL
+  rollouts: RollPacker (2509.21009).
+- Simulators: Vidur (MLSys'24, measured kernel profiles up to 4K tokens, recompute only);
+  LLMServingSim 2.0 (2602.23036, vLLM V1 scheduler port with CPU/CXL tiers).
 
 ## Evidence so far
 
-From MathArena AIME 2025 (7,915 samples): within best-of-4 on one problem, the longest sample holds
-36% of byte-seconds (uniform would be 25%) and runs alone 12% of the time, so within-problem skew is
-mild. Across a mixed batch the skew is strong (53% held by the longest 10%). Details:
-findings/01-tts-kv-skew.md.
+- MathArena AIME 2025 (7,915 samples): within best-of-4 on one problem the longest sample holds 36%
+  of byte-seconds (uniform 25%); across a mixed batch the longest 10% hold 53%
+  (findings/01-tts-kv-skew.md).
+- HuggingFace H4, N up to 2048: within a best-of-N group the longest 10% hold 23 to 27% of
+  byte-seconds and the group spends 44 to 60% of its life with at most 10% of samples alive; those
+  stragglers are decoding, not paused. Beam search final samples share prefixes 3.0 to 3.6 times,
+  DVTS about 1.9 times (findings/03-h4-large-n.md).
+- Preempted KV in a second tier, with a vLLM-V1-faithful simulator calibrated on measured H100
+  kernels, cross-checked against LLMServingSim 2.0 and a real vLLM run, on the Qwen-Bailian thinking
+  trace and MathArena best-of-N (findings/02-preempted-kv-tier.md):
+  - throughput gain 2 to 10% at saturation (median 5.5%), 0 to 8% over tuned admission, 0 below
+    saturation, no goodput gain at p99 TTFT of 10 or 60 s;
+  - first-order model: gain is about R / rho, with R (recomputed per generated token) below 0.9
+    and rho (decode over recompute cost per token) 4 to 30, because prefill is compute-bound and
+    decode bandwidth-bound;
+  - capacity: 0.1 to 0.25x HBM KV for production arrivals, 1 to 4x only for offline best-of-N
+    bursts; inside a DGX node's 2 TB DRAM except offline best-of-64 on 8x H200/B200 with vLLM's
+    LRU tier; pooling across 8 nodes saves 49 to 64% of a capacity that is not needed.
 
 ## Plan
 
 1. Large-N analysis with the HuggingFace H4 best-of-N, beam-search and DVTS completions (N up to
-   2048).
-2. Preemption sizing model: given HBM capacity and the length distribution, how often requests are
-   preempted, and how much CXL capacity removes recomputation, for GQA and MLA models.
-3. Significance gate on that model; stop or pivot if the gain is small.
-4. For a conference version: a placement mechanism plus validation on vLLM or SGLang with CPU
-   offload or CXL emulation.
+   2048). Done: findings/03.
+2. Preemption sizing model. Done: analysis/kvsim.py and the gate2_* sweeps, findings/02.
+3. Significance gate on that model. Done: fails (gain 2 to 10%, capacity fits in host DRAM).
+4. Conference version (placement mechanism plus vLLM/SGLang validation): not pursued, since gate 2
+   failed. The only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with an
+   FP8 KV cache, worth 5 to 8% over tuned admission.
 
 ## Data and how to run
 
-MathArena AIME 2025 outputs, HuggingFace H4 completions (Llama-3.2 1B/3B), Monkey Business, the
-Qwen-Bailian thinking trace. `./fetch_data.sh` downloads into data/ (not in git); then
-`pip install -r requirements.txt` and `python3 analysis/tts_skew.py`.
+MathArena AIME 2025 outputs, HuggingFace H4 completions (Llama-3.2 1B/3B), the Qwen-Bailian thinking
+trace, public model configs and Vidur's H100 kernel profiles. `./fetch_data.sh` downloads them into
+data/ (not in git); then create a venv, `pip install -r requirements.txt`, and run the scripts in
+analysis/ (see README.md). Results are in results/.

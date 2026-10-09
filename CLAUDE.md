@@ -5,18 +5,20 @@ findings/01-tts-kv-skew.md.
 
 ## Where it stands
 
-- Novelty scan: crowded for ISCA/MICRO/HPCA without a mechanism and real-system validation; partly
-  open for a top journal (IEEE TC, TPDS, ACM TACO) or an IEEE CAL letter.
-- Data so far (MathArena AIME 2025): across a mixed batch, the longest 10% of samples hold 53% of KV
-  byte-seconds; within best-of-4 on one problem the skew is mild (36% vs 25%).
-- Risk: tiering decoding KV to CXL needs sparse attention, which is close to OasisKV
-  (arXiv 2608.08097) and "Not All Thoughts Need HBM" (2605.09490).
+- Novelty scan: crowded for ISCA/MICRO/HPCA; keeping preempted KV off-GPU already ships with host
+  DRAM (vLLM 0.19+ CPU offload, vLLM-Ascend, SGLang).
+- Data: MathArena (53% of KV byte-seconds in the longest 10% of a mixed batch), H4 large-N
+  (findings/03), Qwen-Bailian thinking trace.
+- Gate 2 on the preemption sizing model FAILED (2026-10-09, findings/02): a tier for preempted KV
+  gains 2 to 10% throughput at saturation, 0 to 8% over tuned admission, no goodput at usable
+  latency; capacity fits in host DRAM except offline best-of-N bursts. Reason: gain ~ R / rho with
+  R < 0.9 and rho 4 to 30.
 
 ## Next step
 
-Build the preemption sizing model: KV of paused or preempted requests is not read every step, so
-CXL can hold it instead of recomputing. Use MathArena and the HuggingFace H4 best-of-N, beam and
-DVTS completions (N up to 2048). Run gate 2 on it and report honestly if it fails.
+Recommendation: stop this project as a CXL paper and move to project 2 (hybrid CXL KV endurance).
+If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM
+nodes with FP8 KV, where vLLM's LRU offload tier would need 2 to 4x HBM KV for a 5 to 8% gain.
 
 ## Working rules (from the author)
 

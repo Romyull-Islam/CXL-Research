@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 # Private conversation transcript; remove this line to publish it
 chat/
+results/*_timelines.json
+results/*.log
