@@ -1,6 +1,6 @@
 # Sizing CXL memory tiers for test-time-scaling LLM workloads
 
-Goal, gap, motivation and related work: [GOAL.md](GOAL.md). Results so far: [findings/](findings/).
+Everything about the project (idea, gap, goal, motivation, related work, evidence, plan): [PROJECT.md](PROJECT.md). Results so far: [findings/](findings/).
 
     ./fetch_data.sh                     download MathArena AIME 2025 outputs into data/
     pip install -r requirements.txt
