@@ -98,7 +98,7 @@ a calibrated multi-host simulation. Left for the author:
    write-visibility numbers against the 1.4 us poll cost used in the model.
 2. Bibliography: done (24 entries verified, paper/p3.bib).
 3. Check VAMOs (MICRO'26, 4 Nov) and the HPCA'27 list (2026-11-06) before submitting.
-4. Add affiliation and compile with the IEEE CAL template.
+4. Add the department to the author line (Kennesaw State University is in) and compile with the IEEE CAL template.
 
 ## Files
 

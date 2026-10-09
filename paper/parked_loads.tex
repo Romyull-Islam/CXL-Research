@@ -10,8 +10,9 @@
 
 \title{Parked Loads: Protocol-Safe Wait-Until-Written\\Reads for Multi-Host CXL Memory}
 
-\author{Romyull~Islam% <- affiliation to be added
-\thanks{Manuscript draft, October 2026.}}
+\author{Romyull~Islam
+\thanks{Manuscript draft, October 2026. R.~Islam is with Kennesaw State University, Kennesaw, GA,
+USA (e-mail: mislam22@students.kennesaw.edu).}}% department to be added
 
 \markboth{IEEE Computer Architecture Letters (draft)}{Islam: Parked Loads for Multi-Host CXL Memory}
 
@@ -19,7 +20,8 @@
 
 \begin{abstract}
 Hosts that share a CXL memory device have no cross-host hardware coherence, or only a small
-coherent region, so they synchronize by flushing and polling. Each poll costs a device round trip,
+coherent region, so the databases, message passing, GPU collectives and LLM serving systems built on
+such memory synchronize by flushing and polling. Each poll costs a device round trip,
 plus a flush of microseconds on today's devices, and the polls of many waiting threads consume the
 bandwidth that other tenants of a memory pool need. Holding a read in memory until the data is
 written is an old idea (full/empty bits, conditional loads with timeout), but no one has shown that
@@ -42,7 +44,15 @@ CXL 2.0 switches and multi-headed devices let 2 to 16 hosts load and store the s
 3.x adds back-invalidation (BI) for hardware coherence, but deployments keep the coherent region
 small or absent, and shared memory exposed as HDM-H supports only software coherence~\cite{cxl3}.
 Cross-host communication therefore runs on software protocols: a producer writes a message and a
-flag, the consumer flushes its cached copy and re-reads the flag until it changes. Measured costs
+flag, the consumer flushes its cached copy and re-reads the flag until it changes. Every system
+built on shared CXL memory so far waits this way. A distributed database for a CXL pod keeps its
+locks in the small coherent region~\cite{tigon}; MPI and RPC over CXL poll message
+queues~\cite{cmpi,hydrarpc}; GPU collectives spin on a doorbell per chunk~\cite{cccl}; and TraCT,
+which hands KV cache from prefill to decode servers through CXL memory for LLM serving, polls and
+flushes lock state per node: acquiring a lock takes 20 to 100\,\si{\micro\second} from 2 to 16
+nodes in its simple design and below 40\,\si{\micro\second} in its optimized
+one~\cite{tract,tract_thesis}. Software coherence also
+limits which synchronization schemes can be expressed at all~\cite{pnnlsync}. Measured costs
 are high. On an FPGA multi-headed device a flushed access takes \SI{2.2}{\micro\second}, 2.8$\times$
 a cached one, and \texttt{clflush} plus fence costs 2 to \SI{3}{\micro\second}~\cite{cmpi}; a
 64\,B RPC round trip takes \SI{1.47}{\micro\second} on a \SI{300}{\nano\second} device~\cite{hydrarpc};
@@ -64,9 +74,10 @@ hosts behind a switch or a multi-headed device, request credits are finite, the 
 outlive a completion timeout whose expiry isolates the port, the protocol has no response that means
 \emph{not yet}, and hosts and device heads fail separately.
 
-This letter makes three contributions: (1) four rules under which a CXL device parks a plain
-CXL.mem read without breaking forward progress, ordering or timeouts, and an encoding for the
-\emph{empty} reply that needs no new host hardware beyond decoding it; (2) the device, host and
+We ask whether a CXL device can hold such a read safely and what that buys. This letter makes
+three contributions: (1) four rules under which a CXL device parks a plain CXL.mem read without
+breaking forward progress, ordering or timeouts, and an encoding for the \emph{empty} reply; the
+host only decodes it and issues parked loads non-speculatively; (2) the device, host and
 failure design around them, with a table cost of \SI{64}{\kilo\byte}; (3) a calibrated multi-host
 model showing the latency gain and the fabric bandwidth that polling waiters take from other
 tenants of a shared device, which prior work does not quantify.
