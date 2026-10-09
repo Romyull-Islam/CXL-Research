@@ -1,17 +1,20 @@
-"""Fit the step-time model's efficiencies to measured H100 kernel times and report the error.
+"""Fit the step-time model's efficiencies to measured kernel times (H100, A100) and report the error.
 
 Data: Vidur's profiling CSVs (github.com/microsoft/vidur, data/profiling, commit abae7f6),
 copied to data/vidur by fetch_data.sh. They hold median per-layer times of each operator, measured
-on H100 with vLLM-era kernels (FlashAttention 2), for KV lengths up to 4K tokens and batches up to
-128. The fit uses Llama-2-70B; the other profiled models are held out as validation.
+with vLLM-era kernels (FlashAttention 2). H100: KV lengths up to 4K tokens, batches up to 128, fit
+on Llama-2-70B. A100 (80 GB SXM): KV and chunks up to 16K tokens, batches up to 512, fit on
+Llama-3-70B. The other profiled models are held out as validation. H200 and B200 reuse the H100
+fractions.
 
 Prefill attention efficiency grows with work per launch and Vidur's FA2-era kernels reach only
 10 to 25% of peak in the profiled range. Current vLLM on Hopper uses FlashAttention 3, which
 reports about 600 TFLOP/s (0.6 of peak) for long causal BF16 sequences (Shah et al., NeurIPS'24).
 Two calibrations are kept: "fa2" (fitted saturation curve) and "fa3" (same curve shape with a 0.6
 asymptote). fa2 makes recompute more expensive, so it is the setting that favors keeping KV.
+FlashAttention 3 needs Hopper, so on A100 the measured FA2 curve is used as is.
 
-Run: python analysis/calibrate.py
+Run: python analysis/calibrate.py [H100|A100]
 """
 from dataclasses import replace
 from pathlib import Path
@@ -23,19 +26,31 @@ from scipy.optimize import least_squares
 from models import Eff
 
 PROF = Path(__file__).resolve().parent.parent / "data" / "vidur" / "profiling"
-F, BW = 989e12, 3.35e12
-FIT_MODEL = "meta-llama/Llama-2-70b-hf"
+SKUS = {
+    "H100": dict(dir="h100", net="h100_dgx", F=989e12, BW=3.35e12, fit="meta-llama/Llama-2-70b-hf",
+                 check="codellama/CodeLlama-34b-Instruct-hf"),
+    "A100": dict(dir="a100", net="a100_dgx", F=312e12, BW=2.039e12, fit="meta-llama/Meta-Llama-3-70B",
+                 check="meta-llama/Meta-Llama-3-8B"),
+}
+F, BW, DIR, NET, FIT_MODEL, CHECK = 0.0, 0.0, "", "", "", ""
+
+
+def _use(gpu):
+    """Point the module at one GPU's profiles (the fit functions read these globals)."""
+    global F, BW, DIR, NET, FIT_MODEL, CHECK
+    k = SKUS[gpu]
+    F, BW, DIR, NET, FIT_MODEL, CHECK = k["F"], k["BW"], k["dir"], k["net"], k["fit"], k["check"]
 GEMM_OPS = ["attn_pre_proj", "attn_post_proj", "mlp_up_proj", "mlp_down_proj"]
 ELEM_OPS = ["input_layernorm", "attn_rope", "post_attention_layernorm", "mlp_act", "add"]
 
 
 def _models():
-    return sorted(str(p.parent.relative_to(PROF / "compute" / "h100"))
-                  for p in (PROF / "compute" / "h100").glob("*/*/mlp.csv"))
+    return sorted(str(p.parent.relative_to(PROF / "compute" / DIR))
+                  for p in (PROF / "compute" / DIR).glob("*/*/mlp.csv"))
 
 
 def _mlp(model):
-    m = pd.read_csv(PROF / "compute" / "h100" / model / "mlp.csv")
+    m = pd.read_csv(PROF / "compute" / DIR / model / "mlp.csv")
     m["tp"] = m.num_tensor_parallel_workers
     m["n"] = m.num_tokens
     hd = m.n_embd / m.n_head
@@ -47,7 +62,7 @@ def _mlp(model):
 
 
 def _attn(model):
-    a = pd.read_csv(PROF / "compute" / "h100" / model / "attention.csv")
+    a = pd.read_csv(PROF / "compute" / DIR / model / "attention.csv")
     a["tp"] = a.num_tensor_parallel_workers
     a["hd"] = a.n_embd / a.n_q_head
     a["kvh_rank"] = np.maximum(a.n_kv_head / a.tp, 1)
@@ -81,7 +96,8 @@ def prefill_time(p, w):
     return w / (F * emax * w / (w + w0))
 
 
-def fit():
+def fit(gpu="H100"):
+    _use(gpu)
     m = _mlp(FIT_MODEL)
     g = least_squares(lambda p: (gemm_time(p, m.P, m.n, m.tp) - m.t_gemm) / m.t_gemm, [0.7, 0.8],
                       bounds=([0.05, 0.05], [1, 1])).x
@@ -100,7 +116,9 @@ def fit():
     pre = least_squares(lambda p: (prefill_time(p, pp.w) - pp.t) / pp.t, [0.3, 1e10],
                         bounds=([0.01, 1e6], [1, 1e13])).x
     ar = {}
-    net = pd.read_csv(PROF / "network" / "h100_dgx" / "all_reduce.csv")
+    net = pd.read_csv(PROF / "network" / NET / "all_reduce.csv")
+    # single-node rows only (the A100 file also holds runs spread over two 4-GPU nodes)
+    net = net[net.devices_per_node >= net.num_workers]
     for nw, x in net.groupby("num_workers"):
         x = x.groupby("size")[["time_stats.all_reduce.min", "time_stats.all_reduce.median"]].median() / 1e3
         big = x.index > 4e6
@@ -123,12 +141,16 @@ _CACHE = {}
 
 
 def calibrated_eff(gpu="H100", kernel="fa3", step_overhead=0.5e-3):
-    """Efficiencies for the step-time model. Fitted on H100; other GPUs reuse the fractions."""
-    if "p" not in _CACHE:
-        _CACHE["p"] = fit() if PROF.exists() else None
-    if _CACHE["p"] is None:
+    """Efficiencies for the step-time model: A100 uses its own fit and measured FA2 prefill
+    attention; every other GPU reuses the H100 fractions."""
+    sku = "A100" if gpu.startswith("A100") else "H100"
+    if sku == "A100":
+        kernel = "fa2"
+    if sku not in _CACHE:
+        _CACHE[sku] = fit(sku) if PROF.exists() else None
+    if _CACHE[sku] is None:
         return replace(Eff(), step_overhead=step_overhead)
-    return make_eff(_CACHE["p"], kernel, step_overhead)
+    return make_eff(_CACHE[sku], kernel, step_overhead)
 
 
 def _err(pred, meas):
@@ -136,8 +158,8 @@ def _err(pred, meas):
     return f"median {r.median() * 100:5.1f}%  p90 {r.quantile(0.9) * 100:5.1f}%  n={len(r)}"
 
 
-def report():
-    p = fit()
+def report(gpu="H100"):
+    p = fit(gpu)
     print("fitted on", FIT_MODEL)
     print(f"  GEMM: {p['gemm'][0]:.3f} of peak FLOP/s, {p['gemm'][1]:.3f} of HBM bandwidth")
     print(f"  elementwise per layer: {p['elem'][0] * 1e6:.1f} us + n x ({p['elem'][1] * 1e9:.1f} + "
@@ -146,7 +168,7 @@ def report():
     print(f"  prefill attention: asymptote {p['pre'][0]:.3f} of peak, half rate at {p['pre'][1]:.2e} FLOPs per layer-rank")
     for k, (lat, bw) in sorted(p["ar"].items()):
         print(f"  all-reduce tp{k}: {lat * 1e6:.1f} us + bytes / {bw / 1e9:.0f} GB/s")
-    print("\nper-operator error (Llama-2-70B is the fit; the rest are held out)")
+    print(f"\nper-operator error ({FIT_MODEL} is the fit; the rest are held out)")
     for model in _models():
         m = _mlp(model)
         s = f"{model:32s} GEMM {_err(gemm_time(p['gemm'], m.P, m.n, m.tp), m.t_gemm)}"
@@ -163,8 +185,8 @@ def report():
         print(f"{'':32s} decode attn {_err(decode_time(p['dec'], d), d.t)}"
               f" | prefill attn (chunk>=512) {_err(prefill_time(p['pre'], pp.w), pp.t)}")
     # whole layer: GEMM + elementwise + attention for decode batches and prefill chunks
-    print("\nwhole-layer error, Llama-2-70B and CodeLlama-34B, tp 1/2/4/8")
-    for model in [FIT_MODEL, "codellama/CodeLlama-34b-Instruct-hf"]:
+    print(f"\nwhole-layer error, {FIT_MODEL} (fit) and {CHECK} (held out), all profiled tp")
+    for model in [FIT_MODEL, CHECK]:
         m, a = _mlp(model), _attn(model)
         rows = []
         dd = a[~a.is_prefill.astype(bool)]
@@ -194,4 +216,5 @@ def report():
 
 
 if __name__ == "__main__":
-    report()
+    import sys
+    report(sys.argv[1] if len(sys.argv) > 1 else "H100")

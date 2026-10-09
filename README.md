@@ -19,3 +19,19 @@ Everything about the project (idea, gap, goal, motivation, related work, evidenc
 
 Code: analysis/kvsim.py (vLLM V1 scheduler and KV tiers), models.py (model shapes and step time),
 workloads.py (traces), runner.py (parallel sweeps). Sweeps use 12 workers, about 250 MB each.
+
+## Final test on an A100 server (pending)
+
+    here:    python3 analysis/a100_validate.py traces           (already in results/a100/)
+    server:  rsync the repository without data/ and .venv/, then in a fresh venv:
+             uv pip install vllm==0.31.0 pandas --torch-backend=auto
+             python3 analysis/a100_validate.py check             pick idle GPUs
+             python3 analysis/a100_validate.py microbench --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B --gpus 0
+             python3 analysis/a100_validate.py run --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B --gpus 0 --trace bailian
+             python3 analysis/a100_validate.py run ... --trace bo16_llama
+             optional, 4x A100 80 GB: --model deepseek-ai/DeepSeek-R1-Distill-Llama-70B --tp 4 --gpus 0,1,2,3
+    here:    copy results/a100/*.json back, then python3 analysis/a100_validate.py compare
+
+The 8B runs take about 10 minutes per configuration for bailian and 30 for bo16_llama (two
+repetitions of recompute and CPU offload each). Every run records other users' GPU processes;
+contended runs are dropped by compare.

@@ -97,6 +97,10 @@ GPUS = {
     "H100": GPU("H100", 989e12, 3.35e12, 80e9, 50e9),
     "H200": GPU("H200", 989e12, 4.8e12, 141e9, 50e9),
     "B200": GPU("B200", 2250e12, 8.0e12, 180e9, 50e9),
+    # A100 SXM (312 TFLOPS BF16, 2.039 TB/s at 80 GB, 1.555 TB/s at 40 GB); host link PCIe Gen4 x16,
+    # 32 GB/s raw per direction, about 25 GB/s for pinned copies
+    "A100": GPU("A100", 312e12, 2.039e12, 80e9, 25e9),
+    "A100-40": GPU("A100-40", 312e12, 1.555e12, 40e9, 25e9),
     # RTX PRO 6000 Blackwell Server Edition: 1,000 TFLOPS BF16 with 2:4 sparsity (500 dense),
     # 1,597 GB/s, 96 GB; used only to cross-check against LLMServingSim's shipped profile
     "PRO6000": GPU("PRO6000", 500e12, 1.597e12, 96e9, 16e9),
