@@ -162,7 +162,8 @@ def waiters_vs_tenant(p, waiters, protocol, horizon=200_000.0, mean_wait=20_000.
     env.run(until=horizon)
     return dict(tenant_GBs=tenant_bytes[0] / horizon, handoff_ns=float(np.mean(lat)) if lat else float("nan"),
                 handoff_p99_ns=float(np.percentile(lat, 99)) if lat else float("nan"),
-                poll_reads=dev.stats["reads"])
+                device_reads=dev.stats["reads"], parked_max=dev.stats["parked_max"],
+                table_full=dev.stats["table_full"])
 
 
 def rpc(p, protocol, service_ns, size=256, calls=60):

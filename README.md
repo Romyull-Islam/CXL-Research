@@ -29,4 +29,5 @@ PROJECT.md for the author's remaining items.
     python3 -m pytest model/test_parksim.py     simulator checks
     python3 model/experiments.py                latency, RPC and barrier results
     python3 model/run_contention.py             waiters sharing a switched device with tenants
+    python3 model/run_table.py                  parked-table size and overflow
     python3 paper/figures.py && (cd paper && tectonic parked_loads.tex)

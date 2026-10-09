@@ -56,7 +56,8 @@ class Device:
         self.down = [simpy.Resource(env, 1) for _ in range(p.hosts)]
         self.lines = {}
         self.parked_now = 0
-        self.stats = dict(reads=0, writes=0, parked=0, timeouts=0, table_full=0, egress_bytes=0, ingress_bytes=0)
+        self.stats = dict(reads=0, writes=0, parked=0, timeouts=0, table_full=0, egress_bytes=0, ingress_bytes=0,
+                          parked_max=0)
         self.bi_waiters = {}        # line -> list of (host, event) holding a coherent copy
 
     def line(self, a):
@@ -98,6 +99,7 @@ class Device:
             else:
                 self.stats["parked"] += 1
                 self.parked_now += 1
+                self.stats["parked_max"] = max(self.stats["parked_max"], self.parked_now)
                 ev = self.env.event()
                 ln.parked.append(ev)
                 got = yield ev | self.env.timeout(self.p.park_timeout)

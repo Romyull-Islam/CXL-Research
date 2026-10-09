@@ -63,4 +63,9 @@ Results (model/results_latency.csv, results_contention.csv):
   41.6 GB/s with parked loads against 25.6 to 26.2 GB/s with polling; handoff 1.1 us against 2.7
   to 6.5 us.
 
-Run: `python model/experiments.py`, `python model/run_contention.py`, `python paper/figures.py`.
+- Parked-table size (model/results_table.csv, run_table.py): peak occupancy equals the number of
+  waiting lines (512); with 256 or 64 entries overflowing reads are answered empty and retried,
+  degrading toward polling (tenants 32.3 and 27.1 GB/s, handoff 1.8 and 2.5 us).
+
+Run: `python model/experiments.py`, `python model/run_contention.py`, `python model/run_table.py`,
+`python paper/figures.py`.

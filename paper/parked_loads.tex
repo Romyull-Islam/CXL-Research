@@ -2,10 +2,10 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{cite}
+\usepackage{url}
 \usepackage{siunitx}
 \sisetup{detect-all}
 
-% Bibliography entries without authors were not verified; complete them before submission.
 \begin{document}
 
 \title{Parked Loads: Memory-Side Waiting\\for Multi-Host CXL Synchronization}
@@ -187,6 +187,12 @@ handoff to 6.5 and \SI{2.7}{\micro\second}. Parked waiters issue one access per 
 keep \SI{41.6}{\giga\byte\per\second} and the handoff stays at \SI{1.1}{\micro\second}, 2.5$\times$
 faster than the best poller.
 
+\textbf{Table size.} Peak occupancy equals the number of waiting lines, 512 here, well within the
+4,096-entry table. With only 256 or 64 entries, overflowing reads are answered \emph{empty} at once
+and retried, and the device degrades toward polling: tenants keep 32.3 and
+\SI{27.1}{\giga\byte\per\second} and the handoff rises to 1.8 and \SI{2.5}{\micro\second},
+still no worse than line polling.
+
 \textbf{Limitations.} The results come from a model, not hardware. Real BI handoff latency has not
 been published, so coherent spin is modeled from its message flow. The poll cost spans 50\,ns to
 \SI{1.4}{\micro\second} across devices, which is why we report both ends. Workloads with
@@ -201,30 +207,6 @@ microsecond-scale cross-host communication by 1.3 to 4$\times$ and stops waiting
 consuming a pooled device's bandwidth.
 
 \bibliographystyle{IEEEtran}
-\begin{thebibliography}{99}\small
-\bibitem{cxl3} CXL Consortium, ``Compute Express Link Specification, Revision 3.0,'' 2022, Secs.
-2.4.4, 3.2.2.2, 3.3.3, 3.3.11, 8.2.4.23.1 and 12.3.2.
-\bibitem{cmpi} ``cMPI: Using CXL memory sharing for MPI one-sided and two-sided inter-node
-communications,'' in \emph{Proc. SC}, 2025, arXiv:2510.05476.
-\bibitem{hydrarpc} ``HydraRPC: RPC in the CXL era,'' in \emph{Proc. USENIX ATC}, 2024.
-\bibitem{octopus} ``Octopus,'' in \emph{Proc. NSDI}, 2026, arXiv:2501.09020.
-\bibitem{memchannel} ``MemChannel,'' in \emph{Proc. NSDI}, 2026, arXiv:2608.21731.
-\bibitem{cccl} ``CXL-CCL: Collective communication over CXL shared memory,'' in \emph{Proc. ICS},
-2026, arXiv:2602.22457.
-\bibitem{tera} R. Alverson \emph{et al.}, ``The Tera computer system,'' in \emph{Proc. ICS}, 1990.
-\bibitem{istructures} Arvind, R. S. Nikhil and K. Pingali, ``I-structures: Data structures for
-parallel computing,'' \emph{ACM TOPLAS}, vol. 11, no. 4, pp. 598--632, 1989.
-\bibitem{lustig} D. Lustig and M. Martonosi, ``Reducing GPU offload latency via fine-grained CPU-GPU
-synchronization,'' in \emph{Proc. HPCA}, 2013.
-\bibitem{callback} A. Ros and S. Kaxiras, ``Callback: Efficient synchronization without
-invalidation with a directory just for spin-waiting,'' in \emph{Proc. ISCA}, 2015.
-\bibitem{intelq} D. Das Sharma and R. Blankenship (Intel), US Patent 12,455,827 B2, 2025.
-\bibitem{intellock} Intel, ``Locking hardware for a shared memory,'' US Patent Application
-2025/0021228 A1, 2025.
-\bibitem{intelmwait} Intel, US Patent 11,093,398 B2 (remote memory monitor and wait), 2021.
-\bibitem{micron} D. Brewer and R. Walker, ``Synchronized request handling at a memory device,'' US
-Patent 12,645,581 B2, 2026.
-\bibitem{simpy} SimPy discrete-event simulation for Python, version 4.1.2, https://simpy.readthedocs.io.
-\end{thebibliography}
+\bibliography{p3}
 
 \end{document}
