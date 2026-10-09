@@ -5,18 +5,18 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
 
 ## Where it stands
 
-- Core analysis done on Mooncake and Qwen-Bailian traces (analysis/hybrid_device_replay.py,
-  analysis/per_node_endurance.py).
-- Not novel for a top conference: "HBF Sucks?" (arXiv 2608.11668) reports the flash write excess on
-  the same Bailian traces. Viable as a top-journal paper (IEEE TC, ACM TACO, ACM TOS) that adds the
-  CXL device model, the oracle-admission bound, the interactive vs API split and provisioning rules.
-- Counter-evidence to address: SPLASH (2609.23816) and HiFC (NeurIPS'25) get multi-year lifetimes
-  with SLC or pseudo-SLC; Mooncake FAST'25 shows a shared pool beating prefix-routed local caches.
+- Journal analysis done 2026-10-09 (findings/05): per-node scaling fixed, FTL with GC validated
+  against Desnoyers' closed forms, TLC/pSLC/SLC x BF16/FP8/INT4 provisioning, write amplification by
+  KV death order, shared pool at Mooncake scale. Headline: admit-all never fits TLC; TLC fits only
+  API-like traffic at partial duty or MLA with INT4; interactive traffic needs pSLC or SLC.
+- Novelty narrow but present; target ACM TOS. New competitors to cite: HBFlex, Lachesis,
+  2609.07175, 2609.39131, HBF Sucks?.
+- Memory: endurance_sweep.py peaks near 1 GB per worker; use WORKERS=5 at most on this host.
 
 ## Next steps
 
-The five items under "Remaining work for a journal version" in PROJECT.md, starting with the sweep over
-TLC, pseudo-SLC and SLC and over BF16, FP8 and INT4 KV, with budgets in TB/day.
+The three items under "Remaining work for a journal version" in PROJECT.md (emulator-measured write
+amplification, the paper, a fresh novelty search).
 
 ## Working rules (from the author)
 

@@ -1,9 +1,11 @@
 # Endurance limits of LLM KV caching on hybrid DRAM-over-NAND CXL memory
 
-Status (2026-10-09): core analysis done on two providers' production traces. Not novel for a top
-conference ("HBF Sucks?", arXiv 2608.11668, reports the flash write excess on the same Alibaba
-traces for on-package flash). Viable as a rigorous top-journal paper (IEEE TC, ACM TACO, ACM TOS)
-that extends that result to CXL devices with the pieces it lacks.
+Status (2026-10-09): journal analysis done (findings/05). Novelty re-checked the same day: narrow
+but present; no paper models a hybrid DRAM-over-NAND CXL device with per-node scaling, measured
+write amplification and flash x precision provisioning, but HBF papers now add admission and
+lifetime-aware placement (2609.07175, 2609.39131, HBFlex 2609.18675, Lachesis 2610.08378) and two
+use the same Bailian traces. Target: ACM TOS (characterization and provisioning); IEEE TC or TACO
+are weaker without a mechanism. Not a top-conference paper.
 
 ## Idea
 
@@ -49,8 +51,14 @@ A trace-driven characterization and provisioning study for hybrid CXL KV tiers:
 ## Related work
 
 - Flash endurance for KV: "HBF Sucks?" (2608.11668, write excess on Bailian traces, on-package
-  flash); Son et al. and Kyung et al. (IEEE CAL'26, HBF KV endurance); Lachesis (2610.08378) and
-  HBFlex (2609.18675), lifetime-aware placement.
+  flash, unit write amplification, TLC only); Son et al. and Kyung et al. (IEEE CAL'26, HBF KV
+  endurance); Lachesis (2610.08378) and HBFlex (2609.18675, about 30x GC write amplification for
+  interleaved lifetimes), lifetime-aware placement; admission for HBF: 2609.07175 (LRU-K, SLC) and
+  2609.39131 (admission headroom).
+- Hybrid CXL KV systems measured without wear: HyMCache (64 GB DRAM over 2 TB TLC, skips over 15% of
+  insertions), ITME (qualitative wear claims only), LM-CXD (emulated Z-NAND), TempoKV (XCENA MX1P over
+  a 15.36 TB PM1753); measured CMM-H: 48 GB DRAM cache, about 27 GB/s when the working set fits and
+  5 GB/s when it does not.
 - Counter-evidence: SPLASH (2609.23816) and HiFC (NeurIPS'25) report multi-year lifetimes with SLC
   or pseudo-SLC.
 - Load versus recompute: "To Restore or To Recompute" (HotStorage'26); py-kvcache (2609.11744);
@@ -66,20 +74,32 @@ split and device provisioning rules.
 
 ## Evidence so far
 
-Full tables in findings/04-endurance-wall.md (both providers, three models, three policies), with
-the novelty verdict at its end. Supporting findings: 01 (Mooncake reuse times and capacity curves),
-02 (Alibaba MaaS: reserved KV pools are 1 to 2% used outside decode instances), 03 (real CXL ASIC
-bandwidth by read/write mix, for calibration).
+Full tables in findings/05-journal-analysis.md (corrected per-node scaling, measured write
+amplification, provisioning across flash type, KV precision, admission and prefill duty, shared
+pool versus per-host caches) and findings/04-endurance-wall.md (first pass and novelty verdict).
+Headlines:
+- admit-all never fits TLC or pseudo-SLC; with second-hit or oracle admission, TLC fits only
+  API-like traffic at partial prefill duty or MLA models with INT4 KV; interactive traffic needs
+  pseudo-SLC or SLC, and at full prefill duty nearly half of its cases exceed 100 TB/day;
+- FP8 halves and INT4 quarters NAND writes; MLA models write 2.5 to 2.8x less than a GQA 70B model;
+- write amplification of an LRU KV cache is about 1 (FTL validated against Desnoyers' closed
+  forms); request-scoped KV reaches 2.2 with TRIM and 6.9 without it, the CXL.mem case;
+- a shared pool beats load-balanced cache-aware routing by only 1 to 18%, random routing by 1.05
+  to 4.5x; Mooncake's +136% sits inside this range.
+Supporting findings: 01 (Mooncake reuse), 02 (Alibaba MaaS pools), 03 (CXL bandwidth by mix).
 
 ## Remaining work for a journal version
 
-1. Sweep TLC, pseudo-SLC and SLC and BF16, FP8 and INT4 KV; state budgets in TB/day.
-2. A page-mapped FTL with garbage collection to measure write amplification.
-3. Quote HyMCache, ITME and LM-CXD exactly so the comparison is fair.
-4. Redo the shared-pool check at Mooncake's scale (analysis/quickchecks is too small and conflicts
-   with Mooncake FAST'25).
-5. Calibrate against Cylon (FAST'26) or published CMM-H measurements; add the Bailian thinking and
-   coder traces.
+Done on 2026-10-09 (findings/05): consistent per-node scaling, a validated FTL with garbage
+collection, the TLC / pSLC / SLC x BF16 / FP8 / INT4 sweep with datasheet budgets, write
+amplification by KV death order (including the no-TRIM CXL case), the shared-pool check at
+Mooncake's scale, the Bailian thinking and coder traces, the exact claims of HyMCache, ITME,
+LM-CXD and TempoKV (none measures wear), and a bandwidth check against measured CMM-H rates.
+Left:
+1. Measure write amplification on a validated SSD emulator (FEMU reports WAF in its log page) or a
+   real drive by replaying the logged NAND write streams; not on the author's system disk.
+2. Write the paper; cite and separate HBF Sucks?, HBFlex, Lachesis, 2609.07175 and 2609.39131.
+3. Re-run the novelty search before submission.
 
 ## Data and how to run
 
