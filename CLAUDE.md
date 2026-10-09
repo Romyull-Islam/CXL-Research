@@ -6,7 +6,7 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
 ## Where it stands
 
 - Journal analysis done 2026-10-09 (findings/05): per-node scaling fixed, FTL with GC validated
-  against Desnoyers' closed forms, TLC/pSLC/SLC x BF16/FP8/INT4 provisioning, write amplification by
+  against Desnoyers' closed forms and MQSim, TLC/pSLC/SLC x BF16/FP8/INT4 provisioning, write amplification by
   KV death order, shared pool at Mooncake scale. Headline: admit-all never fits TLC; TLC fits only
   API-like traffic at partial duty or MLA with INT4; interactive traffic needs pSLC or SLC.
 - Novelty narrow but present; target ACM TOS. New competitors to cite: HBFlex, Lachesis,
@@ -15,8 +15,8 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
 
 ## Next steps
 
-The three items under "Remaining work for a journal version" in PROJECT.md (emulator-measured write
-amplification, the paper, a fresh novelty search).
+Paper drafted (paper/endurance_tos.tex). Left: the author's items under "Remaining work for a journal
+version" in PROJECT.md (affiliation, fresh novelty search, optional real-drive replay).
 
 ## Working rules (from the author)
 

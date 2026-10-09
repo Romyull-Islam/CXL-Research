@@ -1,0 +1,302 @@
+% p2.bib: ACM TOS paper on endurance of hybrid DRAM-over-NAND CXL KV caches
+% Verified 2026-10-09 against arXiv API, Crossref, usenix.org, GitHub.
+% arXiv titles are the latest version as of 2026-10-09; see notes.md where v1 differs.
+
+@misc{hbfsucks,
+  author        = {Zhuoran Li and Zhuohang Bian and Xin Huang and Yibo Zhao and Guangyu Sun and Youwei Zhuo},
+  title         = {{HBF} Sucks? {A} Full-Stack Characterization of High-Bandwidth Flash for {KV}-Centric {LLM} Serving},
+  year          = {2026},
+  eprint        = {2608.11668},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2608.11668}
+}
+
+@misc{hbflex,
+  author        = {Shuzhang Zhong and Weikai Xu and Yifan Zhou and Tongbin Zhao and Tenghao Zhao and Yifei Kang and Cunyin Chang and Shu Li and Guangyu Sun and Meng Li},
+  title         = {{HBFlex}: A Flexible Memory System for Bridging Fine-Grained {LLM} States and Coarse-Grained {HBF} Parallel Execution},
+  year          = {2026},
+  eprint        = {2609.18675},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.18675}
+}
+
+@misc{lachesis,
+  author        = {Jaehoon Yang and Jeongmin Lee and Haneul Park and Seung Yul Lee and Nam Sung Kim and Jae W. Lee},
+  title         = {Lachesis: Lifetime-Aware {KV} Cache Placement for Agent Serving across {HBM} and High-Bandwidth Flash},
+  year          = {2026},
+  eprint        = {2610.08378},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2610.08378}
+}
+
+@misc{huawei_hbf,
+  author        = {Danni Peng and Kai Wu and Tianyu Zuo and Pengfei Xia and Hui Zang},
+  title         = {Enabling High-Bandwidth Flash for Generative Recommendation Serving with Write-Aware {KV} Cache Policy},
+  year          = {2026},
+  eprint        = {2609.07175},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.07175}
+}
+
+@misc{berkeley_hbf,
+  author        = {Zack Yu and Chloe Wong and Coleman Hooper and Minjae Lee and Wonjun Kang and Youngjin Cho and Michael W. Mahoney and Yakun Sophia Shao and Kurt Keutzer and Amir Gholami},
+  title         = {Characterizing High Bandwidth Flash for {LLM} Serving},
+  year          = {2026},
+  eprint        = {2609.39131},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.39131}
+}
+
+@misc{splash,
+  author        = {Aditya Anirudh Jonnalagadda and Agasthi Haputhanthri and Pranav Dangi and Rohan Juneja and Wenshuo Yue and Aritra Bagchi and Bin Gao and Tulika Mitra},
+  title         = {{SPLASH}: Co-Designing Sparse Attention with High-Bandwidth Flash for Efficient Long-Context Inference},
+  year          = {2026},
+  eprint        = {2609.23816},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.23816}
+}
+
+@inproceedings{hifc,
+  author    = {Inho Jeong and Sunghyeon Woo and Sol Namkung and Dongsuk Jeon},
+  title     = {{HiFC}: High-efficiency Flash-based {KV} Cache Swapping for Scaling {LLM} Inference},
+  booktitle = {Advances in Neural Information Processing Systems 38 (NeurIPS 2025)},
+  pages     = {53093--53122},
+  year      = {2025},
+  doi       = {10.52202/085713-1587}
+}
+
+% v1 title was "HyMCache: A KV Cache Framework for Multi-Turn LLM Serving with CXL-Hybrid Memory".
+@misc{hymcache,
+  author        = {Hakbeom Jang and Inho Song and Hoshik Kim and Sam H. Noh and Jongryool Kim},
+  title         = {A {CXL} Memory Rack for Multi-Turn {LLM} Serving},
+  year          = {2026},
+  eprint        = {2607.18141},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2607.18141}
+}
+
+@misc{itme,
+  author        = {Hakbeom Jang and Younghoon Min and Sunwoong Kim and Taeyoung Ahn and Hanyee Kim and Youngpyo Joo and Hoshik Kim and Jongryool Kim},
+  title         = {{ITME}: Inference Tiered Memory Expansion with Disaggregated {CXL}-Hybrid Memories},
+  year          = {2026},
+  eprint        = {2606.12556},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2606.12556}
+}
+
+@misc{lmcxd,
+  author        = {Hyunsun Chung and Taewan Noh and Minji Kim and Joo-Young Hwang and Hong-Yeon Kim and Youngjae Kim},
+  title         = {Bridging {LLM} Serving and {CXL-SSDs} with Chunk-Aware {KV} Cache Management},
+  year          = {2026},
+  eprint        = {2609.26828},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.26828}
+}
+
+@misc{tempokv,
+  author        = {Jay H. Park and Hyungjun Kim and Dong Kim},
+  title         = {{TempoKV}: Timely Staging of {LLM} {KV} Caches for Memory-Semantic Flash},
+  year          = {2026},
+  eprint        = {2609.35065},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.35065}
+}
+
+% Published in IEEE Micro under a shorter title; arXiv title is
+% "Performance Characterizations and Usage Guidelines of Samsung CXL Memory Module Hybrid Prototype".
+@article{cmmh,
+  author  = {Jianping Zeng and Shuyi Pei and Da Zhang and Yuchen Zhou and Amir Beygi and Xuebin Yao and Ramdas Kachare and Tong Zhang and Zongwang Li and Marie Nguyen and Rekha Pitchumani and Yang Soek Ki and Changhee Jung},
+  title   = {Performance Characterizations and Usage Guidelines of {Samsung} {CMM-H}},
+  journal = {IEEE Micro},
+  volume  = {45},
+  number  = {5},
+  pages   = {94--102},
+  month   = sep,
+  year    = {2025},
+  doi     = {10.1109/MM.2025.3591577},
+  eprint  = {2503.22017},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{cylon,
+  author    = {Dongha Yoon and Hansen Idden and Jinshu Liu and Berkay Inceisci and Sam H. Noh and Huaicheng Li},
+  title     = {Cylon: Fast and Accurate Full-System Emulation of {CXL-SSDs}},
+  booktitle = {24th USENIX Conference on File and Storage Technologies (FAST 26)},
+  pages     = {313--327},
+  publisher = {USENIX Association},
+  address   = {Santa Clara, CA},
+  month     = feb,
+  year      = {2026},
+  url       = {https://www.usenix.org/conference/fast26/presentation/yoon}
+}
+
+@inproceedings{mooncake,
+  author    = {Ruoyu Qin and Zheming Li and Weiran He and Jialei Cui and Feng Ren and Mingxing Zhang and Yongwei Wu and Weimin Zheng and Xinran Xu},
+  title     = {Mooncake: Trading More Storage for Less Computation {\textemdash} A {KVCache}-centric Architecture for Serving {LLM} Chatbot},
+  booktitle = {23rd USENIX Conference on File and Storage Technologies (FAST 25)},
+  pages     = {155--170},
+  publisher = {USENIX Association},
+  address   = {Santa Clara, CA},
+  month     = feb,
+  year      = {2025},
+  url       = {https://www.usenix.org/conference/fast25/presentation/qin}
+}
+
+@misc{tokenlake,
+  author        = {Bingyang Wu and Zili Zhang and Yinmin Zhong and Guanzhe Huang and Yibo Zhu and Xuanzhe Liu and Xin Jin},
+  title         = {{TokenLake}: A Unified Segment-level Prefix Cache Pool for Fine-grained Elastic Long-Context {LLM} Serving},
+  year          = {2025},
+  eprint        = {2508.17219},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2508.17219}
+}
+
+@inproceedings{kvwild,
+  author    = {Jiahao Wang and Jinbo Han and Xingda Wei and Sijie Shen and Dingyan Zhang and Chenguang Fang and Rong Chen and Wenyuan Yu and Haibo Chen},
+  title     = {{KVCache} Cache in the Wild: Characterizing and Optimizing {KVCache} Cache at a Large Cloud Provider},
+  booktitle = {2025 USENIX Annual Technical Conference (USENIX ATC 25)},
+  pages     = {465--482},
+  publisher = {USENIX Association},
+  address   = {Boston, MA},
+  month     = jul,
+  year      = {2025},
+  url       = {https://www.usenix.org/conference/atc25/presentation/wang-jiahao},
+  eprint    = {2506.02634},
+  archivePrefix = {arXiv}
+}
+
+@misc{bailian,
+  author       = {{alibaba-edu}},
+  title        = {{Qwen-Bailian} Anonymous Dataset},
+  howpublished = {GitHub repository, anonymized {LLM} usage traces from a {Qwen} serving cluster on {Aliyun Bailian}},
+  year         = {2025},
+  note         = {Repository created May 2025; accessed 2026-10-09},
+  url          = {https://github.com/alibaba-edu/qwen-bailian-usagetraces-anon}
+}
+
+@inproceedings{restore_recompute,
+  author    = {Amirhossein Najafizadeh and Vasily Tarasov and Alex Merenstein and Yue Zhu and Erez Zadok},
+  title     = {{LLM} {KV}-cache: To Restore or To Recompute, That Is the Question},
+  booktitle = {Proceedings of the 18th ACM Workshop on Hot Topics in Storage and File Systems (HotStorage '26)},
+  pages     = {8--15},
+  publisher = {ACM},
+  address   = {Prague, Czech Republic},
+  year      = {2026},
+  doi       = {10.1145/3837053.3837336}
+}
+
+@misc{pykvcache,
+  author        = {Joseph Kanichai and Tiziano De Matteis and Animesh Trivedi},
+  title         = {Building py-kvcache: A Performance Characterization of External {KV} Caching for {vLLM} with {NVMe} {SSDs}},
+  year          = {2026},
+  eprint        = {2609.11744},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.11744}
+}
+
+@inproceedings{desnoyers,
+  author    = {Peter Desnoyers},
+  title     = {Analytic Modeling of {SSD} Write Performance},
+  booktitle = {Proceedings of the 5th Annual International Systems and Storage Conference (SYSTOR '12)},
+  pages     = {1--10},
+  publisher = {ACM},
+  year      = {2012},
+  doi       = {10.1145/2367589.2367603}
+}
+
+@inproceedings{vanhoudt,
+  author    = {Benny Van Houdt},
+  title     = {A Mean Field Model for a Class of Garbage Collection Algorithms in Flash-Based Solid State Drives},
+  booktitle = {Proceedings of the ACM SIGMETRICS/International Conference on Measurement and Modeling of Computer Systems (SIGMETRICS '13)},
+  pages     = {191--202},
+  publisher = {ACM},
+  year      = {2013},
+  doi       = {10.1145/2465529.2465543}
+}
+
+@inproceedings{hu,
+  author    = {Xiao-Yu Hu and Evangelos Eleftheriou and Robert Haas and Ilias Iliadis and Roman Pletka},
+  title     = {Write Amplification Analysis in Flash-Based Solid State Drives},
+  booktitle = {Proceedings of SYSTOR 2009: The Israeli Experimental Systems Conference},
+  pages     = {1--9},
+  publisher = {ACM},
+  year      = {2009},
+  doi       = {10.1145/1534530.1534544}
+}
+
+@inproceedings{mqsim,
+  author    = {Arash Tavakkol and Juan G{\'o}mez-Luna and Mohammad Sadrosadati and Saugata Ghose and Onur Mutlu},
+  title     = {{MQSim}: A Framework for Enabling Realistic Studies of Modern Multi-Queue {SSD} Devices},
+  booktitle = {16th USENIX Conference on File and Storage Technologies (FAST 18)},
+  pages     = {49--66},
+  publisher = {USENIX Association},
+  address   = {Oakland, CA},
+  month     = feb,
+  year      = {2018},
+  url       = {https://www.usenix.org/conference/fast18/presentation/tavakkol}
+}
+
+@inproceedings{warm,
+  author    = {Yixin Luo and Yu Cai and Saugata Ghose and Jongmoo Choi and Onur Mutlu},
+  title     = {{WARM}: Improving {NAND} Flash Memory Lifetime with Write-Hotness Aware Retention Management},
+  booktitle = {Proceedings of the 31st Symposium on Mass Storage Systems and Technologies (MSST)},
+  pages     = {1--14},
+  publisher = {IEEE},
+  month     = may,
+  year      = {2015},
+  doi       = {10.1109/MSST.2015.7208284}
+}
+
+% Listed as an MLSys 2026 invited talk; not in the MLSys 2026 proceedings index, so cited as arXiv.
+@misc{lmcache,
+  author        = {Yuhan Liu and Yihua Cheng and Jiayi Yao and Yuwei An and Xiaokun Chen and Shaoting Feng and Yuyang Huang and Samuel Shen and Rui Zhang and Kuntai Du and Junchen Jiang},
+  title         = {{LMCache}: An Efficient {KV} Cache Layer for Enterprise-Scale {LLM} Inference},
+  year          = {2025},
+  eprint        = {2510.09665},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2510.09665}
+}
+
+@inproceedings{vllm,
+  author    = {Woosuk Kwon and Zhuohan Li and Siyuan Zhuang and Ying Sheng and Lianmin Zheng and Cody Hao Yu and Joseph Gonzalez and Hao Zhang and Ion Stoica},
+  title     = {Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  booktitle = {Proceedings of the 29th Symposium on Operating Systems Principles (SOSP '23)},
+  pages     = {611--626},
+  publisher = {ACM},
+  year      = {2023},
+  doi       = {10.1145/3600006.3613165}
+}
+
+@inproceedings{flashield,
+  author    = {Assaf Eisenman and Asaf Cidon and Evgenya Pergament and Or Haimovich and Ryan Stutsman and Mohammad Alizadeh and Sachin Katti},
+  title     = {Flashield: a Hybrid Key-value Cache that Controls Flash Write Amplification},
+  booktitle = {16th USENIX Symposium on Networked Systems Design and Implementation (NSDI 19)},
+  pages     = {65--78},
+  publisher = {USENIX Association},
+  address   = {Boston, MA},
+  month     = feb,
+  year      = {2019},
+  url       = {https://www.usenix.org/conference/nsdi19/presentation/eisenman}
+}
+
+@article{cai_proc,
+  author  = {Yu Cai and Saugata Ghose and Erich F. Haratsch and Yixin Luo and Onur Mutlu},
+  title   = {Error Characterization, Mitigation, and Recovery in Flash-Memory-Based Solid-State Drives},
+  journal = {Proceedings of the IEEE},
+  volume  = {105},
+  number  = {9},
+  pages   = {1666--1704},
+  month   = sep,
+  year    = {2017},
+  doi     = {10.1109/JPROC.2017.2713127}
+}
+
+% arXiv lists DeepSeek-AI followed by about 200 individual authors.
+@misc{deepseekv3,
+  author        = {{DeepSeek-AI}},
+  title         = {{DeepSeek-V3} Technical Report},
+  year          = {2024},
+  eprint        = {2412.19437},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2412.19437}
+}

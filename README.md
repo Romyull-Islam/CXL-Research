@@ -24,7 +24,14 @@ Journal analysis (findings/05):
     python3 analysis/pool_sharing.py                                  shared pool vs per-host caches
     python3 analysis/mooncake_repro.py                                Mooncake FAST'25 pool setup
 
+    python3 analysis/dram_sensitivity.py                              device DRAM cache 16 to 256 GB
+    python3 analysis/load_vs_recompute.py                             break-even device bandwidth
+    python3 analysis/export_streams.py                                KV write streams for MQSim
+    analysis/mqsim/README.md                                          MQSim (FAST'18) cross-check of ftl.py
+
 Each sweep takes about 40 minutes and peaks near 1 GB per worker.
+
+Paper (ACM TOS draft): `python3 paper/make_assets.py && (cd paper && tectonic endurance_tos.tex)`.
 
 analysis/quickchecks/ holds rough first checks (session reconstruction, shared pool versus
 per-host caches); they are too small to support claims and conflict with Mooncake FAST'25 on pool

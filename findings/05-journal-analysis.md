@@ -15,31 +15,38 @@ tokens/s x duty = S x the trace's miss tokens/s at that scale).
 
 S is 0.3 to 7 for Llama-3.1-70B, 0.5 to 14 for DeepSeek-V3 and 2.4 to 65 for Qwen2.5-7B. With
 write amplification near 1 (28% over-provisioning), the corrected drive writes per day stay within
-26% of finding 04, except Qwen2.5-7B on the API trace with oracle admission (47 instead of 26). The
-larger change is write amplification at 7% over-provisioning (section 2): with oracle admission it
-roughly doubles several cases, for example DeepSeek-V3 on Bailian chat (144 instead of 64)
-and Llama-3.1-70B on the API trace (39 instead of 17).
+26% of finding 04, except Qwen2.5-7B on the API trace with oracle admission (46 instead of 26).
+Write amplification at 7% over-provisioning adds at most 55% (section 2); for example DeepSeek-V3 on
+Bailian chat with oracle admission needs 75 drive writes per day at 7% and 70 at 28%.
 
 ## 2. Write amplification depends on how KV dies
 
 A page-mapped FTL with greedy garbage collection (analysis/ftl.py) matches Desnoyers' closed forms
-(SYSTOR'12): FIFO cleaning within 1% (8.61 vs 8.69 at 6.2% effective over-provisioning, 2.545 vs
-2.544 at 27%), greedy within 5% of Eq. 11-12, and the published Table 1 values to three decimals.
+(SYSTOR'12): FIFO cleaning within 1% (single write log, the closed form's assumption), greedy within
+5% of Eq. 11-12, and the published Table 1 values to three decimals. Like MQSim and most SSD firmware
+it writes relocated data to a separate GC block. MQSim (FAST'18; analysis/mqsim,
+results/mqsim_crosscheck.csv) on the exported KV streams gives 1.04 (LRU, oracle), 1.00 (LRU, all)
+and 5.65 (request-scoped, no TRIM) at 7% over-provisioning; ftl.py with MQSim's 10 reserved blocks
+agrees within 4.5% on these streams and within 11% on uniform random writes (paper/tab_mqsim.tex).
+An earlier version of ftl.py put GC and host writes in one block,
+which overstated LRU write amplification at 7% over-provisioning (1.92 instead of 1.04); all
+results below use the corrected FTL.
 
 | KV lifetime pattern (results/lifetime_waf.csv) | WAF, 7% OP | WAF, 28% OP |
 |---|---|---|
 | LRU prefix cache, admit all | 1.00 | 1.00 |
-| LRU prefix cache, oracle admission | 1.01 | 1.00 |
-| Request-scoped decode KV, freed with TRIM | 2.17 | 1.54 |
-| Request-scoped decode KV, no TRIM (CXL.mem) | 6.92 | 2.13 |
+| LRU prefix cache, oracle admission | 1.02 | 1.00 |
+| Request-scoped decode KV, freed with TRIM | 2.08 | 1.48 |
+| Request-scoped decode KV, no TRIM (CXL.mem) | 5.17 | 1.96 |
 
 An LRU cache evicts blocks roughly in write order, so erase blocks die whole; HiFC measured 1.02 on
 a real drive and SPLASH assumes 1.15. KV freed when its request ends interleaves lifetimes inside
 erase blocks; HBFlex (arXiv 2609.18675) reports about 30x for that pattern. CXL.mem has no TRIM, so a
-freed block stays valid in the FTL until the host reuses its address, which triples write
-amplification at 7% over-provisioning. Across the full sweep (section 4) prefix-cache WAF is at
-most 1.08 at 28% over-provisioning, and up to about 3 at 7% under oracle admission, whose reads
-reorder LRU eviction.
+freed block stays valid in the FTL until the host reuses its address, which multiplies write
+amplification by 2.5 at 7% over-provisioning. Across the full sweep (section 4) prefix-cache WAF has a median of 1.00, a
+maximum of 1.07 at 28% over-provisioning on the 2 TB device (1.18 on the 667 GB pseudo-SLC device),
+and a maximum of 1.55 (1.94) at 7% under oracle or second-hit admission, whose hits reorder LRU
+eviction.
 
 ## 3. Shared pool versus per-host caches
 
@@ -63,7 +70,7 @@ strictly the scheduler balances load; this replaces the too-small check in analy
 Sweep: 6 traces x 3 models x BF16 / FP8 / INT4 KV x 3 admission policies x prefill duty 100% and
 30%, on a 48 GB DRAM + 2 TB NAND device (results/endurance_sweep_2000GB.csv) and on the same NAND in
 pseudo-SLC mode, 667 GB (endurance_sweep_667GB.csv). Write amplification comes from the FTL; for
-the 25% of cases whose trace is too short to reach FTL steady state even after appending new-user
+the 25% (2 TB) and 10% (667 GB) of cases whose trace is too short to reach FTL steady state even after appending new-user
 copies, it is taken as 1 (column waf_estimated).
 
 Budgets (5-year ratings, datasheets collected 2026-10-09): TLC-1, 2 TB at 1 DWPD (Samsung PM9A3,
@@ -93,9 +100,14 @@ Rules that follow:
    duty, or for MLA with INT4 KV. Interactive traffic (22 to 47% reused; thinking 14 to 15%) needs
 pseudo-SLC or SLC,
    and at full prefill duty nearly half of the cases exceed even 100 TB/day.
-5. Bandwidth is a second wall: 11% of the cases need more than the 4.5 GB/s that a measured CMM-H
+5. Bandwidth is a second wall: 8% of the cases need more than the 4.5 GB/s that a measured CMM-H
    sustains on its NAND path once the working set exceeds its DRAM cache, all of them with
    admit-all or Qwen2.5-7B.
+
+Device DRAM size (results/dram_sensitivity.csv; Bailian API, chat and thinking, Llama-3.1-70B and
+DeepSeek-V3, BF16, full duty): 16 to 256 GB of DRAM cache changes NAND writes by -32 to +6% (under
+5% in most cases) while the DRAM share of hits rises from 0.24-0.49 to 0.35-0.90. DRAM buys hit
+latency, not lifetime.
 
 ## Reading
 

@@ -5,3 +5,5 @@ __pycache__/
 # Private conversation transcript; remove this line to publish it
 chat/
 results/*.log
+paper/*.pdf
+!paper/fig_*.pdf

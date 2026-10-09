@@ -1,0 +1,14 @@
+\begin{tabular}{llrrl}
+\toprule
+KV write stream & OP & MQSim & this FTL & difference \\
+\midrule
+LRU cache, oracle admission & 7\% & 1.043 & 1.065 & +2.1\% \\
+LRU cache, oracle admission & 28\% & 1.000 & 1.000 & +0.0\% \\
+LRU cache, admit all & 7\% & 1.004 & 1.005 & +0.1\% \\
+LRU cache, admit all & 28\% & 1.000 & 1.000 & +0.0\% \\
+request-scoped, no TRIM & 7\% & 5.649 & 5.397 & -4.5\% \\
+request-scoped, no TRIM & 28\% & 1.968 & 1.975 & +0.3\% \\
+uniform random (reference) & 7\% & 8.917 & 7.907 & -11.3\% \\
+uniform random (reference) & 28\% & 2.500 & 2.461 & -1.6\% \\
+\bottomrule
+\end{tabular}

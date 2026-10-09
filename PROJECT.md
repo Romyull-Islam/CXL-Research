@@ -83,7 +83,8 @@ Headlines:
   pseudo-SLC or SLC, and at full prefill duty nearly half of its cases exceed 100 TB/day;
 - FP8 halves and INT4 quarters NAND writes; MLA models write 2.5 to 2.8x less than a GQA 70B model;
 - write amplification of an LRU KV cache is about 1 (FTL validated against Desnoyers' closed
-  forms); request-scoped KV reaches 2.2 with TRIM and 6.9 without it, the CXL.mem case;
+  forms and cross-checked with MQSim within 4.5% on the KV streams); request-scoped KV reaches
+  2.1 with TRIM and 5.2 without it, the CXL.mem case;
 - a shared pool beats load-balanced cache-aware routing by only 1 to 18%, random routing by 1.05
   to 4.5x; Mooncake's +136% sits inside this range.
 Supporting findings: 01 (Mooncake reuse), 02 (Alibaba MaaS pools), 03 (CXL bandwidth by mix).
@@ -96,10 +97,11 @@ amplification by KV death order (including the no-TRIM CXL case), the shared-poo
 Mooncake's scale, the Bailian thinking and coder traces, the exact claims of HyMCache, ITME,
 LM-CXD and TempoKV (none measures wear), and a bandwidth check against measured CMM-H rates.
 Left:
-1. Measure write amplification on a validated SSD emulator (FEMU reports WAF in its log page) or a
-   real drive by replaying the logged NAND write streams; not on the author's system disk.
-2. Write the paper; cite and separate HBF Sucks?, HBFlex, Lachesis, 2609.07175 and 2609.39131.
-3. Re-run the novelty search before submission.
+Also done: write amplification cross-checked with MQSim (FAST'18) on the exported KV streams
+(analysis/mqsim, results/mqsim_crosscheck.csv), device DRAM sensitivity, load versus recompute, and
+the ACM TOS draft (paper/endurance_tos.tex, 9 pages, verified bibliography). Left for the author:
+1. Optional: replay the exported streams on a real drive or FEMU (not the author's system disk).
+2. Add the affiliation; re-run the novelty search right before submission.
 
 ## Data and how to run
 

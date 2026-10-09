@@ -1,0 +1,52 @@
+--- ../GC_and_WL_Unit_Page_Level.cpp.orig	2026-10-09 08:39:43.446044301 -0400
++++ src/ssd/GC_and_WL_Unit_Page_Level.cpp	2026-10-09 08:39:43.455861452 -0400
+@@ -53,17 +53,20 @@
+ 			switch (block_selection_policy) {
+ 				case SSD_Components::GC_Block_Selection_Policy_Type::GREEDY://Find the set of blocks with maximum number of invalid pages and no free pages
+ 				{
+-					gc_candidate_block_id = 0;
+-					if (pbke->Ongoing_erase_operations.find(0) != pbke->Ongoing_erase_operations.end()) {
+-						gc_candidate_block_id++;
+-					}
+-					for (flash_block_ID_type block_id = 1; block_id < block_no_per_plane; block_id++) {
+-						if (pbke->Blocks[block_id].Invalid_page_count > pbke->Blocks[gc_candidate_block_id].Invalid_page_count
+-							&& pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block
+-							&& is_safe_gc_wl_candidate(pbke, block_id)) {
++					//Patched: the stock loop seeded the candidate with block 0/1 without checking that it is full and safe
++					bool found = false;
++					for (flash_block_ID_type block_id = 0; block_id < block_no_per_plane; block_id++) {
++						if (pbke->Blocks[block_id].Current_page_write_index == pages_no_per_block
++							&& pbke->Ongoing_erase_operations.find(block_id) == pbke->Ongoing_erase_operations.end()
++							&& is_safe_gc_wl_candidate(pbke, block_id)
++							&& (!found || pbke->Blocks[block_id].Invalid_page_count > pbke->Blocks[gc_candidate_block_id].Invalid_page_count)) {
+ 							gc_candidate_block_id = block_id;
++							found = true;
+ 						}
+ 					}
++					if (!found) {
++						return;
++					}
+ 					break;
+ 				}
+ 				case SSD_Components::GC_Block_Selection_Policy_Type::RGA:
+--- ../Flash_Block_Manager.cpp.orig	2026-10-09 08:41:40.459141780 -0400
++++ src/ssd/Flash_Block_Manager.cpp	2026-10-09 08:41:40.468616683 -0400
+@@ -43,7 +43,7 @@
+ 		plane_record->Free_pages_count--;		
+ 		page_address.BlockID = plane_record->GC_wf[stream_id]->BlockID;
+ 		page_address.PageID = plane_record->GC_wf[stream_id]->Current_page_write_index++;
+-
++		program_transaction_issued(page_address);//Patched: count in-flight GC programs so the block is not picked as a GC victim before they finish
+ 		
+ 		//The current write frontier block is written to the end
+ 		if (plane_record->GC_wf[stream_id]->Current_page_write_index == pages_no_per_block) {
+--- ../GC_and_WL_Unit_Base.cpp.orig	2026-10-09 08:41:40.460301134 -0400
++++ src/ssd/GC_and_WL_Unit_Base.cpp	2026-10-09 08:41:40.468678391 -0400
+@@ -141,6 +141,7 @@
+ 				break;
+ 			}
+ 			case Transaction_Type::WRITE:
++				_my_instance->block_manager->Program_transaction_serviced(transaction->Address);//Patched: pairs with program_transaction_issued in the GC write path
+ 				if (pbke->Blocks[((NVM_Transaction_Flash_WR*)transaction)->RelatedErase->Address.BlockID].Holds_mapping_data) {
+ 					_my_instance->address_mapping_unit->Remove_barrier_for_accessing_mvpn(transaction->Stream_id, (MVPN_type)transaction->LPA);
+ 					DEBUG(Simulator->Time() << ": MVPN=" << (MVPN_type)transaction->LPA << " unlocked!!");
