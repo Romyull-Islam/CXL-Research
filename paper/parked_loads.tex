@@ -44,7 +44,9 @@ flag, the consumer flushes its cached copy and re-reads the flag until it change
 are high. On an FPGA multi-headed device a flushed access takes \SI{2.2}{\micro\second}, 2.8$\times$
 a cached one, and \texttt{clflush} plus fence costs 2 to \SI{3}{\micro\second}~\cite{cmpi}; a
 64\,B RPC round trip takes \SI{1.47}{\micro\second} on a \SI{300}{\nano\second} device~\cite{hydrarpc};
-a switch adds at least \SI{220}{\nano\second} per access~\cite{octopus}, and loaded latency rises
+a switch adds at least \SI{220}{\nano\second} per access~\cite{octopus}; a characterization of
+multi-host CXL 2.0 on commercial hardware finds up to 4$\times$ the latency of local DRAM and
+cross-host write visibility that depends on carefully chosen flush and fence patterns~\cite{damon26}; and loaded latency rises
 from 230 to \SI{1624}{\nano\second} under contention~\cite{memchannel}.
 
 Polling has two costs. The waiter learns of the write only on its next poll, after a full device

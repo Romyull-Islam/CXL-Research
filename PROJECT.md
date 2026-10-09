@@ -91,9 +91,10 @@ outside shared CXL memory).
 Done on 2026-10-09: framing (microsecond-scale cross-host communication), CXL-specific design points
 (credits, RwD bypass, 25 us bound, empty encoding, speculation, failures, fairness, table cost), and
 a calibrated multi-host simulation. Left for the author:
-1. Read the DaMoN'26 paper (DOI 10.1145/3789237.3809131, open access but blocked to scripts) and
-   add its numbers to the calibration if they differ.
-2. Complete and verify the bibliography (entries without authors in paper/parked_loads.tex).
+1. Optional: read the full DaMoN'26 paper in a browser (DOI 10.1145/3789237.3809131; open access but
+   blocked to scripts). Its verified abstract is already cited in the letter; check its
+   write-visibility numbers against the 1.4 us poll cost used in the model.
+2. Bibliography: done (all 20 entries verified, paper/p3.bib).
 3. Check VAMOs (MICRO'26, 4 Nov) and the HPCA'27 list (2026-11-06) before submitting.
 4. Add affiliation and compile with the IEEE CAL template.
 
