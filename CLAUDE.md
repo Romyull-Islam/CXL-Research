@@ -12,12 +12,14 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
 - Novelty narrow but present; target ACM TOS. New competitors to cite: HBFlex, Lachesis,
   2609.07175, 2609.39131, HBF Sucks?, and Lee et al. HotStorage'25 (TRIM for CXL memory).
 - Paper framing: "How KV Dies Decides How Flash Wears"; lead claim is death order and no-TRIM.
+  Motivation: NVIDIA CMX flash KV tier, Dynamo KVBM SSD tier, ScaleFlux 7 to 10 DWPD KV SSDs;
+  a 10 DWPD 2 TB device covers 40 of 108 second-hit cases (9 of 54 at full prefill duty).
 - Memory: endurance_sweep.py peaks near 1 GB per worker; use WORKERS=5 at most on this host.
 
 ## Next steps
 
 Paper drafted (paper/endurance_tos.tex). Left: the author's items under "Remaining work for a journal
-version" in PROJECT.md (affiliation, fresh novelty search, optional real-drive replay).
+version" in PROJECT.md (department, fresh novelty search, optional real-drive replay).
 
 ## Working rules (from the author)
 

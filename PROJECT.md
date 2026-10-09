@@ -104,7 +104,7 @@ Decides How Flash Wears": it leads with write amplification set by KV death orde
 request-scoped 2.1 with TRIM and 5.2 without, the CXL.mem case), cites TRIM for CXL memory
 (HotStorage'25) and reconciles HBFlex's write amplification of about 30. Left for the author:
 1. Optional: replay the exported streams on a real drive or FEMU (not the author's system disk).
-2. Add the affiliation; re-run the novelty search right before submission.
+2. Add the department to the affiliation (Kennesaw State University is in); re-run the novelty search right before submission.
 
 ## Data and how to run
 
