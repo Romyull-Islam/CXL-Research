@@ -6,3 +6,5 @@ __pycache__/
 chat/
 results/*_timelines.json
 results/*.log
+paper/*.pdf
+!paper/fig_*.pdf

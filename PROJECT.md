@@ -97,8 +97,10 @@ target.
 2. Preemption sizing model. Done: analysis/kvsim.py and the gate2_* sweeps, findings/02.
 3. Significance gate on that model. Done: fails (gain 2 to 10%, capacity fits in host DRAM).
 4. Conference version (placement mechanism plus vLLM/SGLang validation): not pursued, since gate 2
-   failed. The only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with an
-   FP8 KV cache, worth 5 to 8% over tuned admission.
+   failed. Instead, a short letter reports the negative result with its first-order model and
+   validation (paper/preempted_kv.tex); it needs the A100 run (README) before submission. The
+   only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with an FP8 KV
+   cache, worth 5 to 8% over tuned admission.
 
 ## Data and how to run
 

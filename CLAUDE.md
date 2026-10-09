@@ -16,7 +16,9 @@ findings/01-tts-kv-skew.md.
 
 ## Next step
 
-Recommendation: stop this project as a CXL paper and move to project 2 (hybrid CXL KV endurance).
+Recommendation: stop this project as a CXL paper. A short letter on the negative result is drafted
+(paper/preempted_kv.tex); its only missing piece is the A100 run (README, analysis/a100_validate.py),
+which the author will enable on a shared A100 server.
 If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM
 nodes with FP8 KV, where vLLM's LRU offload tier would need 2 to 4x HBM KV for a 5 to 8% gain.
 

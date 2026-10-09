@@ -20,6 +20,12 @@ Everything about the project (idea, gap, goal, motivation, related work, evidenc
 Code: analysis/kvsim.py (vLLM V1 scheduler and KV tiers), models.py (model shapes and step time),
 workloads.py (traces), runner.py (parallel sweeps). Sweeps use 12 workers, about 250 MB each.
 
+## Paper
+
+paper/preempted_kv.tex: short letter (IEEE two-column) with the negative result, its first-order
+model and validation. Build: `python3 paper/make_assets.py && (cd paper && tectonic preempted_kv.tex)`.
+The A100 section is pending.
+
 ## Final test on an A100 server (pending)
 
     here:    python3 analysis/a100_validate.py traces           (already in results/a100/)
