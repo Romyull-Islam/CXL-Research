@@ -6,28 +6,30 @@
 
 \begin{document}
 
-\title{How Long Does a Hybrid CXL Memory Last as an LLM KV Cache?\\
-Endurance and Provisioning from Production Traces}
+\title{How KV Dies Decides How Flash Wears:\\
+Endurance and Provisioning of Hybrid CXL Memory for LLM KV Caches}
 
 \author{Romyull Islam}
 \affiliation{\institution{(affiliation to be added)}\country{}}
 
 \begin{abstract}
-Hybrid CXL memory devices put a DRAM cache in front of terabytes of NAND flash and are being
-proposed as cheap capacity for the key-value (KV) cache of LLM serving. Prior designs evaluate hit
-rate and latency; none measures how fast such a device wears out. We replay six production traces
-from two providers (Mooncake and Qwen-Bailian: chat, API, coding, reasoning and agent traffic)
-through a model of a hybrid device, scale each trace to the prefill throughput of one 8-GPU node,
-and feed the resulting NAND write stream to a page-mapped flash translation layer whose write
-amplification matches published closed forms. Without admission control a node writes 280 to
-1,290\,TB of KV to flash per day, beyond any flash on the market. With admission control, TLC
-flash lasts five years only for API-like traffic at partial prefill duty or for an MLA model with
-4-bit KV; interactive traffic needs pseudo-SLC or SLC, and at full prefill duty nearly half of
-its cases exceed even 100\,TB per day. FP8 and INT4 KV halve and quarter the writes. Write
-amplification of an LRU KV cache stays near 1, because entries die roughly in the order they were
-written; KV freed per request on CXL memory, which has no TRIM, reaches 5.2. We turn these results
-into provisioning rules across flash type, KV precision, admission policy and prefill duty, and
-show that a shared pool beats load-balanced, cache-aware routing by only 1 to 18\%.
+Hybrid CXL memory devices put a DRAM cache in front of terabytes of NAND flash and are proposed as
+cheap capacity for the key-value (KV) cache of LLM serving. Prior designs evaluate hit rate and
+latency, and flash-wear studies target on-package high-bandwidth flash; to our knowledge none asks how long a
+hybrid CXL device lasts as a KV cache, or what to provision so that it lasts. We answer with six
+production traces from two providers (chat, API, coding, reasoning and agent traffic), a model of
+a hybrid device scaled consistently to the prefill throughput of one 8-GPU node, and a flash
+translation layer validated against closed forms and the MQSim simulator. Three findings stand out.
+First, how KV dies decides how flash wears: an LRU prefix cache evicts in near write order and keeps
+write amplification near 1 (median 1.00, at most 1.94 at 7\% over-provisioning), while KV freed per request
+interleaves lifetimes and reaches 2.1 with TRIM and 5.2 without it, the case on CXL.mem, which has
+no TRIM. Second, the write rate itself is the wall: without admission control a node at full prefill
+duty writes 280 to 1,290\,TB of BF16 KV to flash per day; with it, TLC lasts five years only for API-like traffic at partial
+prefill duty or for an MLA model with 4-bit KV on the agent, conversation and reasoning traces, and interactive traffic needs pseudo-SLC or SLC.
+Third, the cheap levers are admission control and KV precision (FP8 and INT4 halve and quarter the
+writes, about one flash class each), not device DRAM, which changes NAND writes little. We turn
+these results into provisioning rules across flash type, KV precision, admission and prefill duty,
+and show that a shared pool beats load-balanced, cache-aware routing by only 1 to 18\%.
 \end{abstract}
 
 \maketitle
@@ -45,23 +47,27 @@ mentions endurance, ITME discusses it only qualitatively, and LM-CXD and TempoKV
 Flash wears out after a few thousand program/erase cycles for TLC. A KV cache writes every block it
 admits, and an LLM node computes new KV at gigabytes per second. Whether a hybrid device can absorb
 that stream for its rated lifetime is the first question a device maker or an operator has to
-answer. A recent study of on-package high-bandwidth flash (HBF) answers part of it: on the
-Qwen-Bailian traces, a flash KV tier writes 1.1 to 4.9 times more than it reads, 48 to 140\,TB per
-day per system, against a 21.7\,TB/day TLC budget~\cite{hbfsucks}. That study assumes unit write
-amplification, TLC only, a fixed admission rule and per-system budgets, and does not model a
-DRAM-over-NAND device.
+answer. Recent work on on-package high-bandwidth flash (HBF) answers parts of it: on the
+Qwen-Bailian traces a flash KV tier writes 1.1 to 4.9 times more than it reads, 48 to 140\,TB per
+day per system, against a 21.7\,TB/day TLC budget~\cite{hbfsucks}; KV pages with different
+lifetimes mixed in one erase block drive garbage-collection write amplification up to about
+30~\cite{hbflex}; lifetime-aware placement and admission extend HBF life~\cite{lachesis,huawei_hbf,berkeley_hbf};
+and TRIM has been argued for CXL memory in general~\cite{trimcxl}. None of this models a
+DRAM-over-NAND CXL device, contrasts the ways KV dies, sweeps flash type and KV precision, or
+scales production traces to a node.
 
 This paper answers the question for hybrid CXL devices and turns the answer into provisioning
-rules. We make four contributions.
+rules. To our knowledge it is the first endurance study of hybrid DRAM-over-NAND CXL devices as KV
+caches. We make four contributions.
 \begin{itemize}
 \item A trace-driven model of a hybrid device (DRAM cache over NAND, three admission policies) with
 consistent per-node scaling: one node is modeled as $S$ interleaved copies of a trace, with $S$
 chosen so that the node's prefill compute is saturated, and the device divided accordingly
 (Section~\ref{sec:method}).
-\item Measured write amplification from a page-mapped FTL validated against Desnoyers' closed
-forms~\cite{desnoyers}. An LRU KV cache has write amplification near 1; KV freed per request
-reaches 2.1 with TRIM and 5.2 without it, which is the case on CXL.mem
-(Section~\ref{sec:waf}).
+\item The finding that how KV dies decides write amplification, measured with a page-mapped FTL
+validated against Desnoyers' closed forms~\cite{desnoyers} and MQSim~\cite{mqsim}: an LRU KV cache
+stays near 1, KV freed per request reaches 2.1 with TRIM and 5.2 without it, and CXL.mem's lack of
+TRIM therefore costs 2.5 times for request-scoped KV (Section~\ref{sec:waf}).
 \item Per-node wear across six traces, three models (GQA 70B, MLA DeepSeek-V3, GQA 7B), three KV
 precisions and two prefill duties, and the cheapest flash class (TLC at 1 or 3 drive writes per
 day, pseudo-SLC, SLC) that lasts five years in each case (Section~\ref{sec:prov}).
@@ -185,10 +191,12 @@ five-year budgets of a 2\,TB device.}
 \label{fig:wear}
 \end{figure}
 
-Two corrections to an earlier version of this analysis matter. First, computing hit rates on a
-full device and multiplying the write rate by the node's throughput, without dividing the device
-by $S$, understates the writes of small models by up to 1.8 times. Second, write amplification at
-7\% over-provisioning, which that version took as 1, adds up to 55\% (Section~\ref{sec:waf}).
+Two common shortcuts understate wear. Computing hit rates on a full device and multiplying the
+write rate by the node's throughput, without dividing the device by $S$, understates the writes of
+small models by up to 1.8 times. Taking write amplification as 1, as prior flash KV
+studies do~\cite{hbfsucks}, understates them by up to 55\% on the 2\,TB device and 94\% on the
+pseudo-SLC device at 7\% over-provisioning even for an LRU cache, and by 5.2 times for
+request-scoped KV without TRIM (Section~\ref{sec:waf}).
 
 \section{Write amplification depends on how KV dies}
 \label{sec:waf}
@@ -213,9 +221,15 @@ SPLASH assumes~\cite{splash}. If instead KV is kept per request and freed when t
 as when decode KV of reasoning requests is offloaded, concurrent requests interleave their blocks in
 every erase block and end at different times: write amplification is 2.1 at 7\% over-provisioning
 with TRIM. CXL.mem has no TRIM, so freed blocks stay valid in the FTL until the host reuses their
-addresses, and write amplification rises to 5.2. HBFlex reports about 30 for interleaved KV
-lifetimes on HBF~\cite{hbflex}. A hybrid CXL device that stores request-scoped KV therefore needs
-either generous over-provisioning or a way for the host to declare data dead.
+addresses, and write amplification rises to 5.2, 2.5 times the TRIM case. HBFlex reports about 30
+for fine-grained LLM states mixed in coarse HBF blocks~\cite{hbflex}; the mechanism is the same, and
+the gap reflects a different device, mapping granularity and spare space, so the two numbers bracket
+the effect rather than contradict each other. Lee et al.\ argue for TRIM in CXL memory in general
+and measure a 19.7\% write-amplification cut for virtual-machine workloads~\cite{trimcxl}; for
+request-scoped KV the cut is 60\%, where whole requests die at once and
+the serving engine knows when. A hybrid CXL device that stores request-scoped KV therefore needs either generous
+over-provisioning or a way for the host to declare data dead, and a serving engine that frees KV
+in LRU order avoids the problem.
 
 \section{Provisioning}
 \label{sec:prov}
@@ -225,7 +239,8 @@ admission. Four rules follow.
 \item \emph{Admission control is mandatory.} Admit-all never fits TLC or pseudo-SLC, and at full
 prefill duty it fits nothing in 48 of 54 cases.
 \item \emph{Workload decides the flash class.} TLC fits API-like traffic at partial prefill duty
-(6 of 9 cases), but interactive traffic only in 2 of 36 cases (DeepSeek-V3 with INT4 KV on the Mooncake traces). Interactive
+(6 of 9 cases), but reasoning traffic only in 1 of 9 and interactive traffic (chat, coding,
+conversation and agent) only in 2 of 36, all DeepSeek-V3 with INT4 KV. Interactive
 traffic needs pseudo-SLC or SLC, and at full prefill duty 16 of its 36 cases exceed even
 100\,TB/day.
 \item \emph{KV precision is worth about one flash class.} FP8 halves and INT4 quarters the NAND
@@ -315,19 +330,30 @@ move most interactive cases from SLC to TLC. We leave this to future work.
 \textbf{Related work.} Endurance of flash KV tiers has been studied for HBF: HBF Sucks?
 (\cite{hbfsucks}), HBFlex (lifetime-aware placement, \cite{hbflex}), Lachesis~\cite{lachesis},
 admission for HBF~\cite{huawei_hbf,berkeley_hbf}, SPLASH~\cite{splash} and HiFC with pseudo-SLC on
-a consumer SSD~\cite{hifc}. Hybrid CXL KV systems evaluate performance without
+a consumer SSD~\cite{hifc}. Lee et al.\ argue for TRIM in CXL memory and evaluate it on
+virtual-machine workloads~\cite{trimcxl}. Hybrid CXL KV systems evaluate performance without
 wear~\cite{hymcache,itme,lmcxd,tempokv}, and device studies characterize CMM-H performance~\cite{cmmh,cylon}.
 KVCache-in-the-Wild~\cite{kvwild}, Mooncake~\cite{mooncake} and TokenLake~\cite{tokenlake}
 characterize reuse and pooling. We add the hybrid device model, consistent per-node scaling,
 measured write amplification including the no-TRIM case, and provisioning across flash type, KV
-precision, admission and prefill duty.
+precision, admission and prefill duty, and we show that the way the serving engine frees KV, not
+the device, decides write amplification.
+
+\textbf{Implications.} For serving engines: keep KV on a hybrid device as an LRU prefix cache, or
+free request-scoped KV in an order the device can follow, and admit only reused blocks. For device
+designers: a way for the host to declare data dead, such as the TRIM for CXL memory proposed by Lee
+et al.~\cite{trimcxl}, is worth 2.5 times in write amplification for request-scoped KV, and
+relaxed retention could move interactive traffic to cheaper flash. For operators: the provisioning
+rules of Section~\ref{sec:prov} pick the flash class from the traffic type, KV precision and
+prefill duty.
 
 \section{Conclusion}
-A hybrid CXL device can serve as an LLM KV cache for five years on TLC flash only when it caches
-API-like traffic with admission control, partial prefill duty or 4-bit MLA KV. Interactive
-traffic needs pseudo-SLC or SLC, or a device that trades retention for endurance. Admission control
-and lower KV precision are the cheapest levers; write amplification is not a problem for LRU
-caches but is for request-scoped KV on memory without TRIM.
+How KV dies decides how flash wears. An LRU KV cache on a hybrid CXL device keeps write
+amplification near 1, while request-scoped KV on CXL.mem, which has no TRIM, raises it to 5.2.
+Even near 1, the write rate itself is the wall: a hybrid device lasts five years on TLC flash only
+when it caches API-like traffic with admission control at partial prefill duty, or 4-bit MLA KV
+for agent, conversation or reasoning traffic. Interactive traffic needs pseudo-SLC or SLC, or a device that trades retention for endurance.
+Admission control and lower KV precision are the cheapest levers.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{p2}

@@ -10,7 +10,8 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
   KV death order, shared pool at Mooncake scale. Headline: admit-all never fits TLC; TLC fits only
   API-like traffic at partial duty or MLA with INT4; interactive traffic needs pSLC or SLC.
 - Novelty narrow but present; target ACM TOS. New competitors to cite: HBFlex, Lachesis,
-  2609.07175, 2609.39131, HBF Sucks?.
+  2609.07175, 2609.39131, HBF Sucks?, and Lee et al. HotStorage'25 (TRIM for CXL memory).
+- Paper framing: "How KV Dies Decides How Flash Wears"; lead claim is death order and no-TRIM.
 - Memory: endurance_sweep.py peaks near 1 GB per worker; use WORKERS=5 at most on this host.
 
 ## Next steps
