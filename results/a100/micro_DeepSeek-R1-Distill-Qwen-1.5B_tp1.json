@@ -1,0 +1,46 @@
+{
+ "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+ "tp": 1,
+ "gpus": "0",
+ "config": "recompute",
+ "num_blocks": 3053,
+ "offload_gb": 32.0,
+ "gpu_name": "NVIDIA RTX 4500 Ada Generation, 24570 MiB",
+ "rows": [
+  {
+   "ctx": 2048,
+   "batch": 17,
+   "prefill_s": 1.047699213027954,
+   "prefill_decode_s": 2.521472930908203,
+   "c_pre": 3.009246360948857e-05,
+   "step_s": 0.011513857170939445,
+   "c_dec": 0.0006772857159376144,
+   "rho": 22.506821798533533
+  },
+  {
+   "ctx": 8192,
+   "batch": 4,
+   "prefill_s": 1.171281337738037,
+   "prefill_decode_s": 2.575812816619873,
+   "c_pre": 3.574466973077506e-05,
+   "step_s": 0.010972902178764343,
+   "c_dec": 0.002743225544691086,
+   "rho": 76.74502423306078
+  },
+  {
+   "ctx": 16384,
+   "batch": 2,
+   "prefill_s": 1.4162003993988037,
+   "prefill_decode_s": 2.830275058746338,
+   "c_pre": 4.3219006329309195e-05,
+   "step_s": 0.01104745827615261,
+   "c_dec": 0.005523729138076305,
+   "rho": 127.80786989844233
+  }
+ ],
+ "gpu_monitor": {
+  "n_samples": 19,
+  "foreign_pids": [],
+  "contended": false
+ }
+}

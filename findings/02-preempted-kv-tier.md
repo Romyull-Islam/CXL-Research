@@ -41,6 +41,13 @@ fails.
      recomputed the other 73K, and lowered throughput by 3.9% (5,090 vs 5,299 tokens/s). Removing
      the pressure altogether (15,000 blocks) raised throughput by only 5.9%. kvsim's LRU tier
      reloads nearly everything, so it is an upper bound on what the shipped tier achieves.
+  4. Real vLLM with a reasoning model (analysis/a100_validate.py run on the local GPU,
+     results/a100/run_DeepSeek-R1-Distill-Qwen-1.5B_tp1_bailian.json): DeepSeek-R1-Distill-Qwen-1.5B
+     on the RTX 4500 Ada with about 2 GB of KV, 400 Bailian requests: 275 preemptions and 569K
+     recomputed tokens (R = 0.43) against 270 and 574K from kvsim. The offloading tier removed 43% of
+     the recomputation; its throughput is not reported because another process started on the GPU
+     during that run. Measured rho (micro_*.json): 23, 77 and 128 at 2K, 8K and 16K tokens of
+     context (batches of 17, 4 and 2 in the small KV budget).
 - Workloads: the Qwen-Bailian thinking trace (10,812 production reasoning requests over 2 hours,
   real arrivals; output p50 1.7K, p99 35K tokens), and MathArena AIME 2025 per-sample lengths of
   the model with the same architecture (R1-Distill-Llama-70B, QwQ-32B, Qwen3-235B, DeepSeek-R1-0528)

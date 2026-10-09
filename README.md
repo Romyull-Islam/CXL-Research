@@ -13,7 +13,8 @@ Everything about the project (idea, gap, goal, motivation, related work, evidenc
                                              gate2_load, gate2_goodput, gate2_pool, gate2_sensitivity,
                                              gate2_fp8_tuned (findings/02)
     python3 analysis/first_order.py          first-order model against the saturation runs
-    python3 analysis/xcheck_llmservingsim.py cross-check against LLMServingSim 2.0
+    python3 analysis/xcheck_llmservingsim.py cross-check against LLMServingSim 2.0 (inputs and
+                                             commands to rerun it: analysis/llmservingsim/)
     python3 analysis/vllm_validate.py run    real vLLM run on a local GPU (needs a vLLM venv),
     python3 analysis/vllm_validate.py compare  then compare with the simulator
 
@@ -24,9 +25,9 @@ workloads.py (traces), runner.py (parallel sweeps). Sweeps use 12 workers, about
 
 paper/preempted_kv.tex: short letter (IEEE two-column) with the negative result, its first-order
 model and validation. Build: `python3 paper/make_assets.py && (cd paper && tectonic preempted_kv.tex)`.
-The A100 section is pending.
+It includes real-vLLM runs on the local GPU; an A100 run would add larger models.
 
-## Final test on an A100 server (pending)
+## Optional: larger models on an A100 server
 
     here:    python3 analysis/a100_validate.py traces           (already in results/a100/)
     server:  rsync the repository without data/ and .venv/, then in a fresh venv:

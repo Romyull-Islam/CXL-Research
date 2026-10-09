@@ -1,6 +1,7 @@
 # Project context for Claude
 
-Sizing CXL memory tiers for test-time-scaling LLM workloads. Read PROJECT.md first (everything is in it), then
+Sizing CXL memory tiers for test-time-scaling LLM workloads. Read PROJECT.md first (everything is in
+it), then
 findings/01-tts-kv-skew.md.
 
 ## Where it stands
@@ -17,8 +18,8 @@ findings/01-tts-kv-skew.md.
 ## Next step
 
 Recommendation: stop this project as a CXL paper. A short letter on the negative result is drafted
-(paper/preempted_kv.tex); its only missing piece is the A100 run (README, analysis/a100_validate.py),
-which the author will enable on a shared A100 server.
+(paper/preempted_kv.tex); it is validated on real vLLM with a reasoning model on the local GPU.
+An A100 run (README, analysis/a100_validate.py) would add larger models and is optional.
 If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM
 nodes with FP8 KV, where vLLM's LRU offload tier would need 2 to 4x HBM KV for a 5 to 8% gain.
 
@@ -43,4 +44,5 @@ pip install -r requirements.txt; downloaded data lives in data/ (fetch_data.sh, 
 
 This project came out of a two-day idea search on 2026-10-08 and 2026-10-09 (16+ ideas checked,
 most rejected by prior work or patents). The full conversation is in chat/ (not in git); read it
-for the reasoning behind every decision. PROJECT.md is the single document for the project: idea, gap, goal, motivation, related work, evidence and plan.
+for the reasoning behind every decision. PROJECT.md is the single document for the project: idea,
+gap, goal, motivation, related work, evidence and plan.

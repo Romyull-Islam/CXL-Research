@@ -98,9 +98,9 @@ target.
 3. Significance gate on that model. Done: fails (gain 2 to 10%, capacity fits in host DRAM).
 4. Conference version (placement mechanism plus vLLM/SGLang validation): not pursued, since gate 2
    failed. Instead, a short letter reports the negative result with its first-order model and
-   validation (paper/preempted_kv.tex); it needs the A100 run (README) before submission. The
-   only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with an FP8 KV
-   cache, worth 5 to 8% over tuned admission.
+   validation (paper/preempted_kv.tex); an A100 run (README) would add larger models but is not
+   required. The only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with
+   an FP8 KV cache, worth 5 to 8% over tuned admission.
 
 ## Data and how to run
 

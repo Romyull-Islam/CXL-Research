@@ -76,8 +76,10 @@ recompute dearer, the measured FlashAttention-2 curve.
 vLLM's scheduler with its own GPU profiles, on 64 requests with 10K to 30K-token outputs:
 preemptions 50 vs 50, recomputed tokens within 0.3\%, per-request finish times correlated at
 0.9999. Against real vLLM 0.31 (Qwen2.5-0.5B, KV fixed at 4,096 blocks, 300 requests with
-Bailian lengths): 297 vs 277 preemptions and 111K vs 118K recomputed tokens. An A100 run with
-reasoning-size models is pending.
+Bailian lengths): 297 vs 277 preemptions and 111K vs 118K recomputed tokens. With a reasoning model
+(DeepSeek-R1-Distill-Qwen-1.5B on an RTX 4500 Ada, about 2\,GB of KV, 400 requests of the Bailian
+trace with outputs up to 32K tokens), vLLM preempted 275 times and recomputed 569K tokens; the
+simulator predicts 270 and 574K.
 
 \textbf{Workloads and deployments.} The Bailian reasoning trace (10,812 requests, real arrivals)
 and best-of-1, 16 and 64 groups of MathArena AIME 2025 outputs from the model with the matching
@@ -135,9 +137,14 @@ write-through, up to 3.4\,TB for 70B on 8 H200 GPUs, against 2\,TB of DRAM in a 
 eight nodes' tiers saves 49 to 64\% of capacity, but the pooled peak (at most 1.3\,TB) is far below
 the nodes' combined DRAM, so CXL capacity is not needed.
 
-\textbf{Real system.} On real vLLM, removing the memory pressure altogether raised throughput by
-only 5.9\%, and vLLM's native CPU offloading tier lowered it by 3.9\%: it reloaded 41\% of the
-preempted KV and paid for writing all KV through to the CPU.
+\textbf{Real system.} On real vLLM with the 0.5B model, removing the memory pressure altogether
+raised throughput by only 5.9\%, and vLLM's native CPU offloading tier lowered it by 3.9\%: it
+reloaded 41\% of the preempted KV and paid for writing all KV through to the CPU. With the
+reasoning model the offloading tier removed 43\% of the recomputed tokens. Measured directly on that
+GPU, a decoded token cost 0.68, 2.7 and 5.5\,ms and a recomputed one 30, 36 and \SI{43}{\micro\second}
+at 2K, 8K and 16K tokens of context: $\rho$ = 23, 77 and 128, larger than in our deployments because
+the small KV budget forces batches of 17, 4 and 2. Here $R$ was 0.43, so $R/\rho$ bounds the gain at
+2\% even at 2K tokens.
 
 \section{Discussion}
 The gain grows as $\rho$ shrinks: with FP8 or INT4 KV, larger HBM and therefore cheaper decode per
