@@ -1,6 +1,6 @@
 # Endurance limits of LLM KV caching on hybrid DRAM-over-NAND CXL memory
 
-Goal, gap, motivation and related work: [GOAL.md](GOAL.md). Results so far: [findings/](findings/).
+Everything about the project (idea, gap, goal, motivation, related work, evidence, plan): [PROJECT.md](PROJECT.md). Results so far: [findings/](findings/).
 
     ./fetch_data.sh                     Mooncake and Qwen-Bailian traces, ByteDance CXL MLC logs, Alibaba MaaS app metrics
     pip install -r requirements.txt
