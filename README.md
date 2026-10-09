@@ -12,13 +12,11 @@ I-structures; CXL brings it back because the memory controller now lives in the 
 every host's requests meet.
 
 Status: idea checked and parked. Novel in CXL, but the significance model (model/) shows too little
-gain for a top venue; see the status note at the top of IDEA.md.
+gain for a top venue; see the status at the top of PROJECT.md.
 
 ## Layout
 
-    GOAL.md                          current goal and target venue (IEEE CAL letter)
-    IDEA.md                          problem and gap, goal, motivation, related work
-    PROPOSAL.md                      research questions, workloads, baselines, evaluation plan, expected objections
+    PROJECT.md                       everything: idea, gap, goal, motivation, related work, evidence, plan
     model/                           first-order significance model and its result
     notes/idea-search-2026-10.md     the 16 ideas checked on 2026-10-08 and why this one was chosen
-    chat/                            readable transcript of the conversation that produced the idea (not tracked by git)
+    chat/                            full conversation that produced the idea (not tracked by git)

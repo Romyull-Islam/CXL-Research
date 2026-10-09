@@ -38,4 +38,4 @@ three latency classes; cMPI (arXiv 2510.05476) measures about 2.2 us.
 
 Fails the significance gate for AI serving: at most about 2% end to end, because bulk data
 movement and compute dwarf the synchronization saved. Borderline only for microsecond-scale RPC
-with very short service times (1.2 to 1.4x). Not top-venue material as framed in IDEA.md.
+with very short service times (1.2 to 1.4x). Not top-venue material as originally framed; see PROJECT.md.
