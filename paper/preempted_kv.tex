@@ -7,54 +7,67 @@
 
 \begin{document}
 
-\title{Recompute Is Cheap: A First-Order Bound on\\Memory Tiers for Preempted KV in Reasoning\\LLM Serving}
+\title{When Does a KV Memory Tier Pay? A First-Order\\Bound, Applied to Preempted KV in Reasoning\\LLM Serving}
 
-\author{Romyull~Islam% affiliation to be added
-\thanks{Manuscript draft, October 2026.}}
-\markboth{Draft}{Islam: Recompute Is Cheap}
+\author{Romyull~Islam
+\thanks{Manuscript draft, October 2026. R.~Islam is with Kennesaw State University, Kennesaw, GA,
+USA (e-mail: mislam22@students.kennesaw.edu).}}% department to be added
+\markboth{Draft}{Islam: When Does a KV Memory Tier Pay?}
 \maketitle
 
 \begin{abstract}
-Reasoning and test-time-scaling workloads fill GPU memory with KV cache, and serving engines
-preempt requests and recompute their KV when memory runs out. Host-DRAM and CXL memory tiers that
-keep preempted KV instead ship in vLLM and are proposed for CXL devices. We give a first-order
-bound on what such a tier can gain: the recompute share of GPU time is $R/(\rho+R)$, so the
-throughput gain is about $R/\rho$, where $R$ is the tokens recomputed per token generated and
-$\rho$ the cost of a decoded token in units of a recomputed one. Prefill is compute-bound and decode
-with a full KV cache is bandwidth-bound, so $\rho$ is 4 to 30 in today's deployments and up to 128
-on a KV-limited GPU, while first-come-first-served preemption keeps $R$ below 0.9. A simulator that
-follows vLLM's scheduler, calibrated on measured kernels and checked against LLMServingSim and real
-vLLM runs, matches the bound within 0.3 points on a production reasoning trace and best-of-$N$ math
-workloads over seven deployments: a tier for preempted KV raises saturation throughput by 2 to 10\%,
-by 1.7 to 8\% over a tuned admission limit, leaves goodput unchanged at usable latency targets, and
-fits in host DRAM except for offline best-of-$N$ batches. The bound also tells when a tier starts to
-pay: cheaper decode (lower $\rho$) or schedulers that preempt on purpose (higher $R$).
+Host-memory, SSD and CXL tiers for the KV cache now ship in vLLM, LMCache and NVIDIA Dynamo, and
+vendors report gains from a few percent to 5.8$\times$. Operators buying memory for KV need to
+know where their workload falls. We give a first-order bound: a tier that removes recomputation
+raises throughput by about $R/\rho$, where $R$ is the tokens recomputed per token generated and
+$\rho$ the cost of a decoded token in units of a recomputed one. Document question answering that
+recomputes a 48K-token prompt for 2 output tokens has $R$ in the thousands, and a tier pays many
+times over. We apply the bound to the case that reasoning models make common, KV of preempted
+requests. Prefill is compute-bound and decode with a full KV cache bandwidth-bound, so $\rho$ is 4
+to 30 in today's deployments, while first-come-first-served preemption keeps $R$ below 0.9. A
+simulator that follows vLLM's scheduler, calibrated on measured kernels and checked against
+LLMServingSim and real vLLM runs, matches the bound within 0.3 points on a production reasoning
+trace and best-of-$N$ math workloads over seven deployments: a tier for preempted KV raises
+saturation throughput by only 2 to 10\%, by 1.7 to 8\% over a tuned admission limit, leaves goodput
+unchanged at usable latency targets, and fits in host DRAM except for offline best-of-$N$ batches.
+Two counters, $R$ and $\rho$, tell an operator whether a tier will pay.
 \end{abstract}
 
 \section{Introduction}
-Reasoning models and test-time scaling (best-of-$N$, tree search) generate thousands to hundreds
-of thousands of tokens per request with heavy-tailed lengths: on a production reasoning trace from
-Qwen-Bailian~\cite{bailian} the median output is 1.7K tokens and the 99th percentile 35K, and the
-longest 10\% of requests hold 71\% of the KV byte-seconds. KV cache, not compute, then limits batch
-size~\cite{kinetics,infscaling}. vLLM admits requests while their inputs fit and, when a running
-request cannot get a block, preempts the most recently admitted one and later recomputes its KV
-from scratch~\cite{vllm}. Keeping that KV instead (swapping it to host memory, or offloading it to
-a CPU or CXL tier) is old~\cite{infercept,fastserve,cacheopt}, ships in vLLM's offloading connector,
-and is a natural use of cheap CXL capacity~\cite{tang_cxl}. Whether it is worth buying memory for
-has not been answered for reasoning workloads.
+Memory tiers for the KV cache have become products. vLLM's offloading connector and
+LMCache~\cite{lmcache} keep KV in host memory, NVIDIA Dynamo's KV block manager adds SSD and remote
+tiers~\cite{dynamo_kvbm}, and CXL memory pools are offered as the next tier~\cite{tang_cxl}. Their
+reported value varies widely. In Samsung's evaluation a CXL pool used by LMCache keeps 354K tokens/s
+on document question answering where 512\,GB of DRAM alone falls to 61K because KV must be
+recomputed, a 5.8$\times$ gain~\cite{samsung_cmmd}; Tang et al.\ report a 30\% larger
+batch~\cite{tang_cxl}; and vLLM recomputes preempted requests by default because recomputation is
+often faster than swapping~\cite{vllm,infermax}. An operator deciding whether to buy host or CXL
+memory for KV has no way to tell which of these a workload will see.
 
-Two facts behind the answer are known. Decode costs far more per token than prefill: Sarathi
-measures 16.7 to 200 times at small batch~\cite{sarathi}, and phase-splitting systems are built on
-the gap~\cite{splitwise,distserve}. And recomputation often beats swapping for a single preempted
-request~\cite{vllm,infermax}, while InferCept and restore-or-recompute models weigh the two per
-request~\cite{infercept,restore_recompute}. What is missing is a bound on what a tier can gain for
-a whole serving workload, and measurements of its inputs for reasoning traffic.
+Reasoning models make the question pressing for one use in particular. They generate thousands to
+hundreds of thousands of tokens per request with heavy-tailed lengths: on a production reasoning
+trace from Qwen-Bailian~\cite{bailian} the median output is 1.7K tokens, the 99th percentile 35K,
+and the longest 10\% of requests hold 71\% of the KV byte-seconds. No batch size fits both the
+median and the tail, so KV, not compute, limits the batch~\cite{kinetics,infscaling} and requests
+that outgrow it are preempted: in our saturation runs 30 to 98\% of requests are preempted, up to
+9 times each, and preemption is routine in reasoning RL rollouts~\cite{rollpacker}. vLLM then
+recomputes their KV from scratch~\cite{vllm}. Keeping that KV instead is the use that offloading
+tiers restore first and the natural use of cheap CXL capacity~\cite{infercept,fastserve,cacheopt}.
 
-This letter contributes (1) the bound $R/\rho$ and the reasons $\rho$ is large and $R$ small under
-first-come-first-served preemption; (2) measurements of $R$, $\rho$ and the gain on a production
-reasoning trace and best-of-$N$ math workloads over seven deployments, with a simulator validated
-against LLMServingSim and real vLLM runs; (3) the tier capacity this needs, which host DRAM already
-provides; and (4) the conditions under which a tier does pay.
+We ask two questions. When does a KV memory tier pay, for any workload? And for preempted KV of
+reasoning traffic, how much throughput does it add and how much capacity does it need? Two facts
+behind the answers are known. Decode costs far more per token than prefill: Sarathi measures 16.7
+to 200 times at small batch~\cite{sarathi}, and phase-splitting systems are built on the
+gap~\cite{splitwise,distserve}. And InferCept and restore-or-recompute models weigh swapping against
+recomputing per request~\cite{infercept,restore_recompute}. What is missing is a workload-level bound
+and measurements of its inputs.
+
+This letter contributes (1) the bound $R/\rho$, which places document question answering
+($R$ in the thousands) and preempted KV ($R<0.9$) at opposite ends; (2) measurements of $R$,
+$\rho$ and the gain for preempted KV on a production reasoning trace and best-of-$N$ math workloads
+over seven deployments, with a simulator validated against LLMServingSim and real vLLM runs, showing
+a gain of only 2 to 10\%; (3) the tier capacity this needs, which host DRAM already provides; and
+(4) the conditions under which a tier for preempted KV would pay.
 
 \section{First-order model}
 \label{sec:model}
@@ -71,10 +84,11 @@ because vLLM puts a preempted request at the head of the waiting queue: it resum
 memory frees up, so most requests are recomputed at most once. Even with 90\% of requests
 preempted, $R$ stays below 0.9 in our runs. The gain is thus bounded by about $0.9/\rho$.
 
-The bound differs from two published results for clear reasons. Tang et al.\ report a 30\% larger
-batch with a CXL KV store than with full recomputation~\cite{tang_cxl}; that is reuse of shared
-prefixes across requests, whose recompute $R$ can be many tokens per generated token, not
-preemption. A dynamical model of evict-and-restart finds throughput losses as large as
+The bound explains the published gains. Samsung's benchmark asks 2-token questions about
+48K-token documents~\cite{samsung_cmmd}, so every miss recomputes 24,000 tokens per generated token
+and a tier that avoids it multiplies throughput. Tang et al.\ report a 30\% larger batch with a
+CXL KV store than with full recomputation~\cite{tang_cxl}; that is also reuse of shared prefixes
+across requests, with $R$ of many tokens per generated token, not preemption. A dynamical model of evict-and-restart finds throughput losses as large as
 50\%~\cite{congestion} in a worst case of identical request lengths and synchronized evictions;
 the same work shows that length heterogeneity stabilizes the system, and reasoning lengths are
 heavy-tailed.
@@ -167,13 +181,15 @@ the small KV budget forces batches of 17, 4 and 2. Here $R$ was 0.43, so $R/\rho
 2\% even at 2K tokens.
 
 \section{When does a tier pay?}
-The bound points to the two ways a tier for preempted KV becomes worth its memory. First, cheaper
+The bound points to three ways a KV tier becomes worth its memory. First, cheaper
 decode lowers $\rho$: FP8 or INT4 KV halves or quarters the bytes read per decode step, and larger
 HBM allows larger batches; with FP8 KV our gain over tuned admission rises to 5 to 8\%, and on H200
 and B200 the gain is larger than on H100. Second, schedulers that preempt on purpose raise $R$: a
 latency-oriented scheduler that time-slices long requests, as in skip-join multi-level
 feedback~\cite{fastserve}, recomputes the same context many times, so $R$ can exceed 1 and the tier
-pays roughly in proportion. Under first-come-first-served admission neither holds, over-admission
+pays roughly in proportion. Third, workloads whose prompts dwarf their outputs raise $R$: document
+question answering~\cite{samsung_cmmd}, and agents whose context is evicted while they wait for a
+tool and is recomputed for a short next turn~\cite{efficientagent,unison}. Under first-come-first-served admission neither holds, over-admission
 rather than missing capacity causes the recomputation, and a better admission limit removes part of
 it at no cost. Operators can check their own deployment with two numbers: $R$ from the scheduler's
 counters and $\rho$ from a short microbenchmark like the one above.
