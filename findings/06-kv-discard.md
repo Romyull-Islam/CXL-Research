@@ -42,9 +42,10 @@ Up to 100 ms per command the gain is unchanged (3.4 to 9x); slots waiting for an
 peak at 3.5% of the live KV, which sets the extra logical space needed. The channel fails only when
 request completions per second times the command latency exceed 1 (here 1.5/s x 1 s), and then
 the host stalls. At node scale (up to about 100 completions/s) one command must take under 10 ms,
-or one command must cover several requests. Absolute sizes: peak live KV on this trace is 714 GB
-for Llama-3.1-70B and 154 GB for DeepSeek-V3, so 10 to 25% is 15 to 38 GB of device DRAM for
-DeepSeek-V3 (within CMM-H's 48 GB) but 71 to 178 GB for Llama-3.1-70B.
+or one command must cover several requests. Absolute sizes: peak live KV on this trace is 731 GB
+for Llama-3.1-70B (327,680 B per token) and 157 GB for DeepSeek-V3 (70,272 B per token), so 10 to
+25% is 16 to 39 GB of device DRAM for DeepSeek-V3 (within CMM-H's 48 GB) but 73 to 183 GB for
+Llama-3.1-70B. The paper now has this as Section "Telling the device that KV is dead".
 
 The event stream had a bug: 194 requests with fewer than 16 output tokens were freed before their
 only block was written. Fixed in lifetime_waf.request_scoped_stream; the published write
@@ -52,4 +53,4 @@ amplification moves from 2.081/5.171 to 2.078/5.169 (results/lifetime_waf_scoped
 
 Gates: novelty partly checked (trimcxl, Micron US12393361 lifetime hints via ZNS); significance
 shown on one trace; feasibility needs a device model with discard latency and the reuse-after-ack
-rule trimcxl names. Not yet in the paper.
+rule trimcxl names.

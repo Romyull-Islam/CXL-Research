@@ -1,5 +1,9 @@
 # Journal analysis: consistent per-node scaling, measured write amplification, provisioning
 
+Note (2026-10-10): paper/endurance_tos.tex carries the audited numbers; where this note differs
+(for example the 2.5 to 2.8x MLA ratio, which holds only for second-hit admission at BF16 and full
+duty), the paper is correct.
+
 This finding redoes finding 04 with three corrections and adds the pieces a journal version needs.
 Scripts: analysis/nand_stream.py, ftl.py, endurance_sweep.py, lifetime_waf.py, pool_sharing.py,
 mooncake_repro.py, provisioning.py; tests in analysis/test_ftl.py. Data: Mooncake (conversation,
@@ -91,7 +95,8 @@ precision cases:
 | Thinking | 2nd hit | SLC 5, none 2, pSLC 2 | pSLC 5, SLC 3, TLC-3 1 |
 
 Rules that follow:
-1. Admit-all never fits TLC or pSLC: a hybrid KV device needs admission control.
+1. Admit-all never fits TLC and fits pSLC only for DeepSeek-V3 with INT4 KV at 30% duty (4 of 54 cases): a
+   hybrid KV device needs admission control. (Corrected 2026-10-10; the first version said it never fits pSLC.)
 2. KV precision is a lever of about one flash class: FP8 halves and INT4 quarters the NAND writes
    (0.49x and 0.24x over the sweep).
 3. MLA models write 2.5 to 2.8x less than a GQA 70B model per node, and small models write the
@@ -100,9 +105,10 @@ Rules that follow:
    duty, or for MLA with INT4 KV. Interactive traffic (22 to 47% reused; thinking 14 to 15%) needs
 pseudo-SLC or SLC,
    and at full prefill duty nearly half of the cases exceed even 100 TB/day.
-5. Bandwidth is a second wall: 8% of the cases need more than the 4.5 GB/s that a measured CMM-H
-   sustains on its NAND path once the working set exceeds its DRAM cache, all of them with
-   admit-all or Qwen2.5-7B.
+5. Bandwidth is a second wall: 7% of the cases (22 of 324) need more than the about 5 GB/s that
+   the 48 GB CMM-H sustains once its working set is much larger than its DRAM cache (HotStorage'25),
+   all with admit-all or Qwen2.5-7B. (Corrected 2026-10-10: the 4.5 GB/s used before is the 16 GB
+   prototype's peak with cache-resident data, not its NAND path.)
 
 Device DRAM size (results/dram_sensitivity.csv; Bailian API, chat and thinking, Llama-3.1-70B and
 DeepSeek-V3, BF16, full duty): 16 to 256 GB of DRAM cache changes NAND writes by -32 to +6% (under

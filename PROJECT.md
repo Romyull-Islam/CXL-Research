@@ -99,10 +99,13 @@ LM-CXD and TempoKV (none measures wear), and a bandwidth check against measured 
 Left:
 Also done: write amplification cross-checked with MQSim (FAST'18) on the exported KV streams
 (analysis/mqsim, results/mqsim_crosscheck.csv), device DRAM sensitivity, load versus recompute, and
-the ACM TOS draft (paper/endurance_tos.tex, 10 pages, verified bibliography), titled "How KV Dies
+the ACM TOS draft (paper/endurance_tos.tex, 12 pages, verified bibliography), titled "How KV Dies
 Decides How Flash Wears": it leads with write amplification set by KV death order (LRU about 1,
 request-scoped 2.1 with TRIM and 5.2 without, the CXL.mem case), cites TRIM for CXL memory
-(HotStorage'25) and reconciles HBFlex's write amplification of about 30. Left for the author:
+(HotStorage'25) and reconciles HBFlex's write amplification of about 30. It adds a mechanism:
+a per-request discard sent by the serving engine on the management path (CXL.io mailbox) lets the
+device drop dead KV from its DRAM and trim it, which cuts flash writes 3.4 to 9.1 times
+(analysis/kv_discard.py, findings/06). Left for the author:
 1. Optional: replay the exported streams on a real drive or FEMU (not the author's system disk).
 2. Add the department to the affiliation (Kennesaw State University is in); re-run the novelty search right before submission.
 

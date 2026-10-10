@@ -12,6 +12,10 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
 - Novelty narrow but present; target ACM TOS. New competitors to cite: HBFlex, Lachesis,
   2609.07175, 2609.39131, HBF Sucks?, and Lee et al. HotStorage'25 (TRIM for CXL memory).
 - Paper framing: "How KV Dies Decides How Flash Wears"; lead claim is death order and no-TRIM.
+  Mechanism (findings/06, paper Section "Telling the device that KV is dead"): a per-request
+  discard on the management path; the device drops dead KV from DRAM and trims it, cutting flash
+  writes 3.4 to 9.1x with commands up to 100 ms; needs reuse-after-acknowledgment and under 10 ms
+  per command at about 100 completions/s.
   Motivation: NVIDIA CMX flash KV tier, Dynamo KVBM SSD tier, ScaleFlux 7 to 10 DWPD KV SSDs;
   a 10 DWPD 2 TB device covers 40 of 108 second-hit cases (9 of 54 at full prefill duty).
 - Memory: endurance_sweep.py peaks near 1 GB per worker; use WORKERS=5 at most on this host.

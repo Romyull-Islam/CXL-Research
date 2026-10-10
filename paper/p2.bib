@@ -314,7 +314,7 @@
 
 % Added 2026-10-09 for the motivation; checked on the publisher pages.
 @misc{nvidia_cmx,
-  author       = {{NVIDIA}},
+  author       = {M. Anschel and E. Zilberstein and O. Duer and K. Shoikhet and R. Prasad},
   title        = {Introducing {NVIDIA} {BlueField-4}-Powered {CMX} Context Memory Storage Platform for the Next Frontier of {AI}},
   howpublished = {NVIDIA Technical Blog},
   month        = mar,
@@ -324,17 +324,98 @@
 
 @misc{dynamo_kvbm,
   author       = {{NVIDIA}},
-  title        = {Dynamo {KV} Block Manager ({KVBM}) Design},
-  howpublished = {NVIDIA Dynamo documentation},
+  title        = {{KVBM} Design, {NVIDIA} Dynamo v1.0.0},
+  howpublished = {GitHub},
   year         = {2026},
-  url          = {https://docs.nvidia.com/dynamo/dev/knowledge-base/modular-components/kvbm/kvbm-design.md}
+  url          = {https://github.com/ai-dynamo/dynamo/blob/v1.0.0/docs/design-docs/kvbm-design.md}
 }
 
 @misc{scaleflux,
-  author       = {{StorageReview}},
-  title        = {{ScaleFlux} {KV} Cache {SSD} Platform Claims 7--10+ {DWPD} and 200+ {FDP} Streams},
-  howpublished = {StorageReview.com},
+  author       = {{ScaleFlux}},
+  title        = {{ScaleFlux} Introduces {AI}-Optimized {SSD} Platform Designed for {NVIDIA} {CMX} and {KV} Cache Offload},
+  howpublished = {Press release, PR Newswire},
   month        = jul,
   year         = {2026},
-  url          = {https://www.storagereview.com/news/scaleflux-kv-cache-ssd-platform-claims-7-10-dwpd-and-200-fdp-streams}
+  url          = {https://www.prnewswire.com/news-releases/scaleflux-introduces-ai-optimized-ssd-platform-designed-for-nvidia-cmx-and-kv-cache-offload-302838473.html}
+}
+
+% Added 2026-10-10 after source verification.
+@inproceedings{cmmh_hs,
+  author    = {Mohammadreza Soltaniyeh and Gongjin Sun and Xuebin Yao and Amir Beygi and Ramdas Kachare and Dongwan Zhao and Hingkwan Huen and Andrew Chang and Senthil Murugesapandian and Caroline Kahn},
+  title     = {Revisiting Memory Hierarchies with {CMM-H}: Use Device-side Caching to Integrate {DRAM} and {SSD} for a Hybrid {CXL} Memory},
+  booktitle = {Proceedings of the 17th ACM Workshop on Hot Topics in Storage and File Systems (HotStorage '25)},
+  pages     = {45--51},
+  publisher = {ACM},
+  year      = {2025},
+  doi       = {10.1145/3736548.3737828},
+  note      = {Bandwidth figures from the presentation slides}
+}
+
+@article{son_hbf,
+  author  = {Dowon Son and Yonggon Park and Hyunuk Cho and Hyungkyu Ham and Onur Mutlu and Sungjin Lee and Gwangsun Kim and Jisung Park},
+  title   = {Exploring High-Bandwidth Flash for Modern {LLM} Inference: Opportunities and Challenges},
+  journal = {IEEE Computer Architecture Letters},
+  volume  = {25},
+  number  = {2},
+  pages   = {251--254},
+  year    = {2026},
+  doi     = {10.1109/LCA.2026.3705817}
+}
+
+@article{kyung_hbf,
+  author  = {Kwanhee Kyung and Yeon Ji Moon and Juhwan Cho and Jung Ho Ahn},
+  title   = {High-Bandwidth Flash for {KV} Caches: Endurance and Performance Implications},
+  journal = {IEEE Computer Architecture Letters},
+  volume  = {25},
+  number  = {1},
+  pages   = {210--213},
+  year    = {2026},
+  doi     = {10.1109/LCA.2026.3695938}
+}
+
+@misc{ds_micron7450,
+  author       = {{Micron Technology}},
+  title        = {Micron 7450 {NVMe} {SSD} Technical Product Specification, Rev. C},
+  month        = feb,
+  year         = {2026},
+  url          = {https://assets.micron.com/adobe/assets/urn:aaid:aem:d133a40b-b36c-4b17-b768-659acc4d4bca/renditions/original/as/7450-nvme-ssd-tech-prod-spec.pdf}
+}
+
+@misc{ds_micronxtr,
+  author       = {{Micron Technology}},
+  title        = {Micron {XTR} {NVMe} {SSD} Technical Product Specification},
+  year         = {2025},
+  url          = {https://assets.micron.com/adobe/assets/urn:aaid:aem:7daa93d3-5d59-4ee0-89dd-4d99f33f042e/renditions/original/as/xtr-ssd-tech-prod-spec.pdf}
+}
+
+@misc{ds_solidigm,
+  author       = {{Solidigm}},
+  title        = {Solidigm {D7-P5810} Product Brief},
+  year         = {2024},
+  url          = {https://www.solidigm.com/content/dam/solidigm/en/site/products/data-center/d7/p5810/documents/solidigm-d7-p5810-product-brief.pdf}
+}
+
+@misc{ds_kioxia,
+  author       = {{KIOXIA}},
+  title        = {{CM7-V} Series Product Brief},
+  year         = {2024},
+  url          = {https://americas.kioxia.com/content/dam/kioxia/shared/business/ssd/enterprise-ssd/asset/productbrief/eSSD-CM7-V-product-brief.pdf}
+}
+
+@misc{ds_samsung,
+  author       = {{Samsung Electronics}},
+  title        = {{PM9A3} {NVMe} {U.2} {SSD} Data Sheet},
+  year         = {2023},
+  url          = {https://www.content.shi.com/cms-content/accelerator/media/pdfs/samsung/samsung-091823-ssd-pm9a3-datasheet.pdf}
+}
+
+@article{secondhit,
+  author  = {Bruce M. Maggs and Ramesh K. Sitaraman},
+  title   = {Algorithmic Nuggets in Content Delivery},
+  journal = {ACM SIGCOMM Computer Communication Review},
+  volume  = {45},
+  number  = {3},
+  pages   = {52--66},
+  year    = {2015},
+  doi     = {10.1145/2805789.2805800}
 }

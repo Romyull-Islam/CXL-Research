@@ -13,9 +13,10 @@ Budgets (5-year ratings, random writes; datasheets collected 2026-10-09):
 Sequential ratings are 1.7 to 4.4x higher for TLC (Micron 7450 spec, 128 KB writes) and KV is
 written in large blocks; `seq` applies the low end of that factor to TLC.
 
-Bandwidth wall: a measured CMM-H sustains about 4.5 to 5 GB/s once the working set exceeds its
-DRAM cache (arXiv 2503.22017; HotStorage'25 slides), ITME's miss path 9 GB/s (arXiv 2606.12556,
-Table 3). `over_bw` marks streams whose NAND writes (with write amplification) exceed 4.5 GB/s.
+Bandwidth wall: the 48 GB CMM-H stabilizes at about 5 GB/s once the working set is much larger
+than its DRAM cache (Soltaniyeh et al., HotStorage'25, DOI 10.1145/3736548.3737828, slides). The
+4.5 GB/s of arXiv 2503.22017 is a peak with cache-resident data, not the NAND path. `over_bw` marks
+streams whose NAND writes (with write amplification) exceed 5 GB/s.
 
 Run: python analysis/provisioning.py
 """
@@ -32,7 +33,7 @@ CLASSES = [  # name, sweep capacity, budget TB/day, over-provisioning for WAF
     ("SLC", 2000, 100.0, 28),
 ]
 SEQ_TLC = 1.7
-NAND_BW = 4.5      # GB/s
+NAND_BW = 5.0      # GB/s
 
 
 def required(row, op):
@@ -81,7 +82,7 @@ def main():
         b = t[t.precision == "BF16"].pivot_table(index=["trace", "model"], columns=["admit", "duty"],
                                                  values="nand_GBs").round(2)
         if not seq:
-            print("-- NAND write GB/s with write amplification, BF16 (device NAND path about 4.5 GB/s)")
+            print("-- NAND write GB/s with write amplification, BF16 (device NAND path about 5 GB/s)")
             print(b.to_string())
 
 

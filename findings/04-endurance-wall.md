@@ -3,7 +3,7 @@
 Data: Mooncake conversation and toolagent traces (one hour each). Scripts:
 analysis/hybrid_device_replay.py (trace replay through device DRAM 16 or 48 GB over 2 TB NAND,
 LRU, write-back to NAND on DRAM eviction) and analysis/per_node_endurance.py (per-node rates).
-Device numbers: GPU to CXL pool 26 GB/s (Beluga, measured), NAND path 1 or 4.5 GB/s (ITME
+Device numbers (first pass; see findings/05 for the corrected NAND path of about 5 GB/s): GPU to CXL pool 26 GB/s (Beluga, measured), NAND path 1 or 4.5 GB/s (ITME
 prototype miss path; CMM-H measured peak). Recompute: FLOP roofline on H100, 50% utilization.
 
 Admission policies: all (write every block evicted from device DRAM), 2nd hit (write only blocks

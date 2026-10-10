@@ -8,7 +8,7 @@ utilization u. Loading takes n * kv_bytes / B over a device path of B bytes/s. L
 B exceeds the break-even bandwidth B* = n * kv_bytes / t_rc(n), which falls as the context grows
 because attention makes recompute superlinear.
 
-Device paths (measured): CMM-H DRAM-cache hits about 27 GB/s and NAND misses about 4.5 to 5 GB/s
+Device paths (measured, 48 GB CMM-H, HotStorage'25): DRAM-cache hits about 27 GB/s, NAND misses about 5 GB/s
 (arXiv 2503.22017, HotStorage'25), ITME miss path 9 GB/s (arXiv 2606.12556). GPUs: H100 989 and
 B200 2250 dense BF16 TFLOP/s; u = 0.5 as in finding 04. The general trade-off is formalized in
 "To Restore or To Recompute" (HotStorage'26); here it is applied to the device numbers above.
@@ -46,7 +46,7 @@ def main():
     df.to_csv(ROOT / "results" / "load_vs_recompute.csv", index=False)
     pd.set_option("display.width", 200)
     print(df.pivot_table(index=["model", "gpu", "precision"], columns="context", values="breakeven_GBs").round(1))
-    print("\nLoading from NAND (4.5 GB/s, CMM-H) wins where the break-even is below 4.5 GB/s;")
+    print("\nLoading from NAND (5 GB/s, CMM-H) wins where the break-even is below 5 GB/s;")
     print("from the DRAM cache (27 GB/s) wherever the break-even is below 27 GB/s.")
 
 

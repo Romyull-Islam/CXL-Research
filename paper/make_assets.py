@@ -137,7 +137,7 @@ def fig_load():
     for (m, p), g in d.groupby(["model", "precision"]):
         ax.plot(g.context, g.breakeven_GBs, color=cols[m], ls=ls[p], marker="o",
                 label=f"{m.split('-')[0]} {p}" if p == "BF16" else None)
-    for name, b in (("CMM-H NAND 4.5", 4.5), ("ITME miss 9", 9.0), ("CMM-H DRAM 27", 27.0)):
+    for name, b in (("CMM-H NAND 5", 5.0), ("CMM-H DRAM 27", 27.0)):
         ax.axhline(b, color="k", lw=0.5, ls=":")
         ax.text(2100, b * 1.07, name + " GB/s", fontsize=6)
     ax.set_xscale("log", base=2)
