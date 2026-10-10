@@ -38,7 +38,7 @@ def request_scoped_stream(rate=30.0, block=16, speed=1.0):
         n = max(int(r.output_length) // block, 1)
         for k in range(n):
             ev.append((t0 + (k + 1) * block / rate, 0, rid, k))          # write block k
-        ev.append((t0 + r.output_length / rate + 1e-6, 1, rid, n))      # free all n
+        ev.append((t0 + max(r.output_length, n * block) / rate + 1e-6, 1, rid, n))  # free all n after the last write
     ev.sort()
     return ev
 
