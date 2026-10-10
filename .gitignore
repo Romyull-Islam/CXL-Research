@@ -11,3 +11,10 @@ m5out/
 .DS_Store
 paper/*.pdf
 !paper/fig_*.pdf
+gem5/
+tla/tools/
+tla/states/
+tla/*_TTrace_*
+gem5-model/runs/
+gem5-model/bench/sync_bench
+gem5-model/sweep_done.txt

@@ -1,18 +1,27 @@
 # Project context for Claude
 
 Parked loads: full/empty synchronization for multi-host CXL memory. Read PROJECT.md first (everything is
-in it), then model/README.md.
+in it), then gem5-model/README.md and tla/README.md.
 
 ## Where it stands
 
 - Novelty re-checked 2026-10-09: not anticipated in CXL. Cite and separate Micron US12645581B2,
   Intel US11093398B2, US12455827, US20250021228A1, HPCA'13 (names timeouts as future work),
   Callback ISCA'15, I-structures, IBM CLT patent, Microsoft conditional reads, SSB, QOLB.
-  The letter's claim is four protocol-safety rules for parking in CXL, not full/empty bits.
+  The letter's claim is five protocol-safety rules for parking in CXL, not full/empty bits.
   Motivation: every CXL shared-memory system polls (Tigon, cMPI, HydraRPC, CXL-CCL, TraCT; TraCT
   lock acquisition 20 to 100 us from 2 to 16 nodes in its thesis).
-- Calibrated SimPy model (model/parksim.py): 1.3 to 4x lower handoff, RPC and barrier latency;
-  polling waiters take up to 44% of a switched device's bandwidth, parked ones about 8%.
+- Model checked (tla/, TLA+ and TLC): all five rules give no Root Port timeout, no stale read, no
+  blocked writer and liveness; removing any one breaks one property (R2 is implied by R1).
+- gem5 v25.1 (gem5-model/, device ParkedMemory as an EXTRAS dir, x86 SE programs on up to 36
+  hosts): parked waiters make 1.4 device reads per message instead of 39 to 750 and leave tenants
+  over 99% of their bandwidth (polling: 77 to 79% with 256 waiters). Latency gain is modest: a parked
+  line fill beats the best software scheme by 1.25x only for one-line messages; longer messages,
+  RPC and barriers favor line polling or are unchanged, because x86 has no 64 B uncached load and
+  write-back stores read for ownership (MOVDIR64B, not in gem5, would remove that). The older SimPy
+  numbers (1.3 to 4x) assumed 64 B uncached loads and expensive flushes; do not quote them.
+- gem5 found two host rules: one sync line per 4 KiB page (a writer's store must not merge behind
+  its own parked prefetch) and cacheable parked reads must be non-consuming.
 - CAL letter draft: paper/parked_loads.tex (4 pages, compiles with tectonic).
 
 ## Next steps

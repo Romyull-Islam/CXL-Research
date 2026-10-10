@@ -5,9 +5,14 @@ Protocol-Safe Wait-Until-Written Reads for Multi-Host CXL Memory"). Novelty re-c
 day: not anticipated in CXL; a second search added IBM's CLT patent, Microsoft's conditional-read
 patent, SSB and QOLB as prior art to cite and separate; the closest new items are Micron US12645581B2 (device defers
 requests to busy lines) and Intel US11093398B2 (remote MONITOR/MWAIT); HPCA'13 already names
-timeouts as future work, so the claim rests on the CXL-specific design. A calibrated multi-host
-simulation replaced the analytical inputs: 1.3 to 4x lower handoff, RPC and barrier latency, and
-waiting threads stop consuming a pooled device's bandwidth. Still too small for ISCA/MICRO/HPCA.
+timeouts as future work, so the claim rests on the CXL-specific design. Evidence now: the five
+rules are model-checked in TLA+ (tla/), and the device runs in gem5 with x86 programs on up to 36
+hosts (gem5-model/): parked waiters make 1.4 device reads per message instead of 39 to 750 and leave
+tenants over 99% of a pooled device's bandwidth (77 to 79% with polling), at equal or slightly lower
+latency (1.25x better than the best software scheme only for one-line messages). The SimPy model
+(model/) is kept as a cross-check; its 1.3 to 4x latency gains assumed 64 B uncached loads and are
+superseded. Still too small for ISCA/MICRO/HPCA; an FPGA prototype (Intel Agilex 7 CXL, 2 to 4
+months for an experienced engineer) would be the step toward a conference.
 
 ## Idea
 
@@ -105,3 +110,11 @@ a calibrated multi-host simulation. Left for the author:
 model/ holds the first-order model (`python3 model/run_model.py`) and the discrete-event simulation
 (`parksim.py`, `experiments.py`, `run_contention.py`); paper/ holds the CAL letter and its figures;
 notes/idea-search-2026-10.md records the 16 ideas checked before this one was chosen.
+
+## Waits longer than the parked-read bound (2026-10-09)
+
+model/run_longwait.py, model/results_longwait.csv: 256 waiters on a switched device with 4
+streaming tenants, mean waits 20 to 500 us (beyond tau = 25 us). Parked reads time out up to 47,838
+times and re-park, yet tenants keep 43.5 to 44.8 GB/s (alone 45.4) against 32.8 to 33.9 with
+polling, and the handoff stays at 1.0 us against 2.1 (line poll) and 4.8 us (flag poll). The
+timeout rule costs nothing visible. Not yet in the letter.

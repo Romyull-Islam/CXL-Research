@@ -11,14 +11,18 @@ producer's write fills it. The idea comes from the HEP (1978) and Tera MTA machi
 I-structures; CXL brings it back because the memory controller now lives in the device, where
 every host's requests meet.
 
-Status: IEEE CAL letter draft in paper/ (3 pages). Novel in CXL as of 2026-10-09; the gain (1.3 to
-4x on microsecond-scale handoffs, RPCs and barriers) is too small for a top conference. See
-PROJECT.md for the author's remaining items.
+Status: IEEE CAL letter draft in paper/ (4 pages): five protocol-safety rules, model-checked in
+TLA+, and a gem5 implementation run with x86 programs on up to 36 hosts. Main result: parked
+waiters stop consuming a pooled device's bandwidth (1.4 instead of 39 to 750 device reads per
+message) at equal or slightly lower handoff latency. See PROJECT.md for the author's remaining
+items.
 
 ## Layout
 
     PROJECT.md                       everything: idea, gap, goal, motivation, related work, evidence, plan
-    model/                           first-order model, SimPy multi-host simulation and results
+    tla/                             TLA+ model of the five rules and the TLC runner (results.csv)
+    gem5-model/                      gem5 device model (src/), multi-host config, x86 benchmark, results
+    model/                           first-order model and SimPy multi-host simulation (cross-check)
     paper/                           CAL letter (parked_loads.tex) and figures
     notes/idea-search-2026-10.md     the 16 ideas checked on 2026-10-08 and why this one was chosen
     chat/                            full conversation that produced the idea (not tracked by git)
@@ -30,4 +34,6 @@ PROJECT.md for the author's remaining items.
     python3 model/experiments.py                latency, RPC and barrier results
     python3 model/run_contention.py             waiters sharing a switched device with tenants
     python3 model/run_table.py                  parked-table size and overflow
+    python3 tla/run_tlc.py                      model checking (needs Java; see tla/README.md)
+    see gem5-model/README.md for building gem5 and running run_gem5.py
     python3 paper/figures.py && (cd paper && tectonic parked_loads.tex)
