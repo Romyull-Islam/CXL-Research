@@ -1,4 +1,4 @@
-# Model checking the four rules
+# Model checking the five rules
 
 `ParkedLoads.tla` models a CXL device that parks reads of an empty synchronization line, consumer
 hosts that wait on it, and a producer host that first reads an ordinary line and then writes the

@@ -4,7 +4,7 @@
    payload pointer) and then writes the sync line. The producer may think for an unbounded time
    before acting, and may fail.
 
-   The four rules of the letter are switches:
+   The five rules of the letter are switches:
      R1  a parked read leaves the request queue, so it frees its request credit;
      R2  writes travel on the RwD channel and need no request credit;
      R3  the device answers every parked read within Timeout ticks, below the Root Port timeout;

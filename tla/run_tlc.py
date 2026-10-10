@@ -1,4 +1,4 @@
-"""Model-check ParkedLoads.tla with all four rules and with each rule removed.
+"""Model-check ParkedLoads.tla with all five rules and with each rule removed.
 
 Each (variant, property) pair is one TLC run, so every violated property is reported, not just
 the first. Writes tla/results.csv and prints a table. Run: python tla/run_tlc.py

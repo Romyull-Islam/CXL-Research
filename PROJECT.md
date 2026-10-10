@@ -9,7 +9,7 @@ timeouts as future work, so the claim rests on the CXL-specific design. Evidence
 rules are model-checked in TLA+ (tla/), and the device runs in gem5 with x86 programs on up to 36
 hosts (gem5-model/): parked waiters make 1.4 device reads per message instead of 39 to 750 and leave
 tenants over 99% of a pooled device's bandwidth (77 to 79% with polling), at equal or slightly lower
-latency (1.25x better than the best software scheme only for one-line messages). The SimPy model
+latency (1.25 to 1.28x better than the best software scheme only for one-line messages). The SimPy model
 (model/) is kept as a cross-check; its 1.3 to 4x latency gains assumed 64 B uncached loads and are
 superseded. Still too small for ISCA/MICRO/HPCA; an FPGA prototype (Intel Agilex 7 CXL, 2 to 4
 months for an experienced engineer) would be the step toward a conference.
@@ -55,10 +55,14 @@ for many independent hosts on CXL, where credits, timeouts, failures and fairnes
   near-memory CAS; PNNL (MEMSYS'24) concludes hardware support is needed.
 - The device is where every host's requests meet, so it is the only place that sees both the
   waiting read and the releasing write.
-- First-order model (model/): parked loads cut one-way handoff latency 1.5 to 1.7x for 64 B to 4 KB
-  messages against the best software protocol at device latencies of 250 to 600 ns; end to end, 1.2
-  to 1.4x for cross-host RPC with service times of 2 us or less. AI serving gains at most about 2%
-  because bulk transfer and compute dominate, so the paper targets microsecond-scale communication.
+- gem5 (gem5-model/, the evidence in the letter): parked waiters make 1.4 to 1.5 device reads per
+  message instead of 39 (18 instead of 740 to 750 for 500 us waits), and tenants of a shared device
+  keep over 99% of their bandwidth with 256 waiters (77 to 79% with polling). A parked flag is 1.02
+  to 1.18x faster than flag polling for handoffs and RPCs and within 1.4% for barriers; a parked
+  line fill beats line polling by 1.25 to 1.28x for one-line messages, but line polling wins for
+  longer messages because write-back stores read the line for ownership. The older first-order
+  model and SimPy simulation (model/) assumed 64 B uncached loads; their 1.5 to 4x latency gains are
+  superseded. AI serving gains little in latency because bulk transfer and compute dominate.
 
 ## Related work
 
@@ -95,13 +99,14 @@ outside shared CXL memory).
 
 ## Remaining work for a CAL letter
 
-Done on 2026-10-09: framing (microsecond-scale cross-host communication), CXL-specific design points
-(credits, RwD bypass, 25 us bound, empty encoding, speculation, failures, fairness, table cost), and
-a calibrated multi-host simulation. Left for the author:
-1. Optional: read the full DaMoN'26 paper in a browser (DOI 10.1145/3789237.3809131; open access but
-   blocked to scripts). Its verified abstract is already cited in the letter; check its
-   write-visibility numbers against the 1.4 us poll cost used in the model.
-2. Bibliography: done (24 entries verified, paper/p3.bib).
+Done on 2026-10-09 and 10-10: framing, five CXL rules checked against the CXL 3.0 and 3.2
+specifications, TLA+ model checking (tla/), gem5 implementation and evaluation (gem5-model/), and an
+audit of every number and cited claim in the letter against the results and primary sources.
+Left for the author:
+1. Optional: read the full DaMoN'26 paper in a browser (DOI 10.1145/3789237.3809131; blocked to
+   scripts); the letter cites only its verified abstract.
+2. Bibliography: verified (p3.bib); the 1.4 us flush cost is our derivation from cMPI's 2.2 us
+   flushed and 0.79 us cached access, stated as such in the letter.
 3. Check VAMOs (MICRO'26, 4 Nov) and the HPCA'27 list (2026-11-06) before submitting.
 4. Add the department to the author line (Kennesaw State University is in) and compile with the IEEE CAL template.
 
