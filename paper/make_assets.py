@@ -10,7 +10,7 @@ import pandas as pd  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 R = HERE.parent / "results"
-plt.rcParams.update({"font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
+plt.rcParams.update({"pdf.fonttype": 42, "font.family": "serif", "font.serif": ["Liberation Serif", "DejaVu Serif"], "font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
                      "legend.fontsize": 6, "legend.frameon": False, "pdf.fonttype": 42})
 DEP = ["70B-8xH100", "70B-8xH200", "70B-8xB200", "QwQ32B-2xH100", "QwQ32B-4xH100", "Qwen3-235B-FP8-8xH100",
        "R1-FP8-8xH200"]

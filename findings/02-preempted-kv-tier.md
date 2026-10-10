@@ -1,5 +1,9 @@
 # Keeping preempted KV in a CXL tier: gate 2 fails
 
+Note (2026-10-10): paper/preempted_kv.tex carries the audited numbers; where this note differs, the paper
+is correct (for example, 30 to 99% of requests preempted, 4 to 9 preemptions per preempted request on
+average in best-of-N, and the online best-of-16 gain of up to 6.4% at 0.85 to 0.95 load).
+
 Question: under KV-cache pressure vLLM preempts requests and later recomputes their KV. A second
 tier (CXL memory, or plain host DRAM) could hold that KV instead, without slowing decode because
 paused KV is not read every step. How much does that save for reasoning and test-time-scaling
@@ -37,7 +41,8 @@ fails.
      results/vllm_validate.json): Qwen2.5-0.5B with the KV cache fixed at 4,096 blocks, 300
      Bailian-shaped requests submitted at once. With recompute, vLLM preempted 297 times and
      recomputed 111,479 tokens; kvsim predicts 277 and 117,656 (-7% and +6%). vLLM's native CPU
-     offloading tier (4 GiB) stored about a third of the KV, reloaded 50K preempted tokens (41%),
+     offloading tier (4 GiB) stored about a third of the KV; from the saved counters it cut recomputation by
+     34% (73K against 111K tokens; the earlier '50K reloaded, 41%' has no saved source),
      recomputed the other 73K, and lowered throughput by 3.9% (5,090 vs 5,299 tokens/s). Removing
      the pressure altogether (15,000 blocks) raised throughput by only 5.9%. kvsim's LRU tier
      reloads nearly everything, so it is an upper bound on what the shipped tier achieves.
@@ -100,7 +105,7 @@ Capacity (results/gate2_capacity.csv). Share of the unlimited-tier gain kept:
 
 | Workload | Swap on preemption | LRU write-through (vLLM) |
 |---|---|---|
-| Bailian, real arrivals | 93 to 96% at 0.1x HBM KV, 98 to 100% at 0.25x | 97 to 103% at 0.25x |
+| Bailian, all submitted at once (offline) | 93 to 96% at 0.1x HBM KV, 98 to 100% at 0.25x | 97 to 103% at 0.25x |
 | Best-of-16/64, all at once | 65 to 93% at 1x, 87 to 106% at 2x | 54 to 94% at 2x, 87 to 110% at 4x |
 
 In absolute terms the swap tier peaks at 19 to 214 GB for Bailian and 0.1 to 2.2 TB for offline

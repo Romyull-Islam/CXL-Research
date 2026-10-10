@@ -17,10 +17,11 @@ findings/01-tts-kv-skew.md.
 
 ## Next step
 
-Recommendation: stop this project as a CXL paper. A short letter on the negative result is drafted
-(paper/preempted_kv.tex, "When Does a KV Memory Tier Pay? A First-Order Bound, Applied to Preempted KV
-in Reasoning LLM Serving"; motivation: the bound explains why Samsung's CMM-D pool gains 5.8x
-on document QA (R about 24,000) while preempted KV gains 2 to 10% (R < 0.9), 4 pages); it is validated on real vLLM with a reasoning model on the local GPU.
+Recommendation: not a CXL architecture paper; an IEEE letter (paper/preempted_kv.tex, 4 pages, "When
+Does a KV Memory Tier Pay? A First-Order Model, Tested on Real vLLM and Applied to Preempted KV in
+Reasoning LLM Serving"). Model: gain = R (c_r - c_l) / (c_d + R c_l). Tested on real vLLM (doc QA,
+findings/04): measured 13%, 82%, 342% at R = 7, 56, 896, predicted within 6 to 11%. Applied to
+preempted KV: 2 to 10% (simulator validated against LLMServingSim and real vLLM).
 An A100 run (README, analysis/a100_validate.py) would add larger models and is optional.
 If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM
 nodes with FP8 KV, where vLLM's LRU offload tier would need 2 to 4x HBM KV for a 5 to 8% gain.
