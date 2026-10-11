@@ -31,8 +31,8 @@ against closed forms and MQSim. Three findings follow. First, how KV dies decide
 LRU prefix cache evicts in near write order and keeps write amplification at a median of 1.00, while
 KV freed per request reaches 2.1 with TRIM and 5.2 without it at 7\% over-provisioning, the case on
 CXL.mem, which has no TRIM. Second, the write rate itself is the wall: with second-hit admission TLC
-lasts five years in only 10 of 108 cases, and 20 exceed even SLC. Third, admission control and KV
-precision are the cheap levers, and for request-scoped KV a discard command per finished request,
+lasts five years in only 10 of 108 cases, and 20 exceed even SLC. Third, admission control and lower KV
+precision cut writes 2 to 20 and 2 to 4 times without new hardware, and for request-scoped KV a discard command per finished request,
 sent on the management path, lets the device drop dead KV from its DRAM and trim it, cutting flash
 writes 3.4 to 9.1 times with commands as slow as 100\,ms. We turn the results into provisioning rules across flash type, KV precision, admission
 and prefill duty.
@@ -53,9 +53,9 @@ and prefill duty.
 \maketitle
 
 \section{Introduction}
-Long contexts, multi-turn chat and agents make LLM serving reuse large prefixes, and serving systems
+Long contexts, multi-turn chat and agents make LLM serving reuse prompt prefixes across requests, and serving systems
 keep the KV cache of those prefixes beyond GPU memory to avoid recomputing
-them~\cite{mooncake,lmcache,kvwild}. The tier below host memory is increasingly flash. NVIDIA
+them~\cite{mooncake,lmcache,kvwild}. Two NVIDIA systems put flash below host memory. NVIDIA
 Dynamo's KV block manager offloads KV from GPU memory to host memory and on to local
 SSDs~\cite{dynamo_kvbm}, and NVIDIA's CMX context memory platform adds a pod-level,
 Ethernet-attached flash tier built for KV~\cite{nvidia_cmx}. Hybrid CXL devices such as Samsung's
@@ -67,8 +67,8 @@ TempoKV never discuss endurance, ITME discusses it only qualitatively, and LM-CX
 with erase blocks to avoid garbage collection without quantifying wear.
 
 Wear is the first question about such a device. TLC flash endures about 1,000
-program/erase cycles~\cite{cai_proc}, a KV cache writes every block it admits, and an LLM node
-computes new KV at gigabytes per second. Vendors already see wear as the limit: ScaleFlux has
+program/erase cycles~\cite{cai_proc}, a KV cache writes every block it admits, and an eight-GPU node
+that admits everything writes 3.3 to 15\,GB/s of new KV to flash (Section~\ref{sec:wear}). Vendors already see wear as the limit: ScaleFlux has
 announced an SSD platform for KV caching rated at 7 to more than 10 effective drive writes per day
 (DWPD), against 1 to 3 for mainstream TLC drives, and reports that KV blocks with different lifetimes
 sharing flash blocks raise write amplification~\cite{scaleflux}. Work on on-package high-bandwidth
@@ -94,7 +94,7 @@ five years?
 \caption{How KV dies decides write amplification. Three erase blocks (EB) at garbage-collection
 time; hatched pages are invalid. (a) An LRU prefix cache evicts nearly in write order (shades of
 blue: write order), so whole erase blocks become invalid together and garbage collection copies
-almost nothing. In (b) and (c), blue, orange and green pages belong to requests A, B and C.
+at most 2\% extra pages (write amplification 1.00 to 1.02). In (b) and (c), blue, orange and green pages belong to requests A, B and C.
 (b) KV kept per request interleaves requests in every erase block; when request B ends and is
 trimmed, every block has holes and its live pages must be copied. (c) CXL.mem has no TRIM, so B's
 dead pages (x) stay valid and are copied too. Write amplification measured at 7\%
@@ -111,14 +111,14 @@ with TRIM and 5.2 without it, so CXL.mem's lack of TRIM costs 2.5 times (Section
 duty writes 280 to 1,290\,TB of BF16 KV to flash per day (Section~\ref{sec:wear}); with second-hit
 admission TLC lasts five years in only 10 of 108 cases, a device rated 10 DWPD covers 40, and 20
 exceed even SLC (Section~\ref{sec:prov}).
-\item \emph{Admission control and KV precision are the cheap levers.} Second-hit and oracle admission
-cut the writes 2 to 20 times, and FP8 and INT4 halve and quarter them, about one flash class each; for a prefix cache, device DRAM changes NAND writes by under
-5\% in most cases (Section~\ref{sec:prov}).
+\item \emph{Admission control and KV precision cut writes without new hardware.} Second-hit and oracle admission
+cut the writes 2 to 20 times, and FP8 and INT4 halve and quarter them; INT4 instead of BF16 moves 34
+of 36 cases to a cheaper flash class. For a prefix cache, growing device DRAM from 16 to 256\,GB
+changes NAND writes by at most 1.1\% with second-hit admission (Section~\ref{sec:prov}).
 \item \emph{A discard per finished request repairs request-scoped KV.} Sent on the management path,
 it lets the device drop dead KV from its DRAM and trim it, cutting flash writes 3.4 to 9.1 times
 with commands as slow as 100\,ms (Section~\ref{sec:discard}).
-\item \emph{A shared pool adds little over good routing}: it beats load-balanced, cache-aware
-routing by 1 to 18\% in hits (Section~\ref{sec:pool}).
+\item \emph{A shared pool gains 1 to 18\% in hits over cache-aware routing} that balances load (Section~\ref{sec:pool}).
 \end{enumerate}
 
 \textbf{Contributions.} (1) A trace-driven model of a hybrid device with consistent per-node scaling
@@ -136,8 +136,8 @@ related work and Section~\ref{sec:disc} the limitations.
 \textbf{Hybrid CXL memory.} A CXL Type-3 device exposes memory to the host over CXL.mem. A hybrid
 device backs that memory with NAND and keeps a DRAM cache: the CMM-H prototype has a 16\,GB
 8-way cache with 4\,KB blocks over a 1\,TB TLC SSD~\cite{cmmh}; a newer version has a 48\,GB cache
-and reaches about 27\,GB/s when the working set fits in it and about 5\,GB/s once the working set
-is much larger~\cite{cmmh_hs}. ITME's internal SSD-to-DRAM path measures 9 to 18\,GB/s, but its
+and reaches about 27\,GB/s when the working set fits in it and about 5\,GB/s when it does
+not~\cite{cmmh_hs}. ITME's internal SSD-to-DRAM path measures 9 to 18\,GB/s, but its
 FPGA prototype delivers under 1\,GB/s on cache misses~\cite{itme}. The host sees memory, not a block device:
 CXL.mem has no TRIM, so the device learns that data is dead only when the host overwrites it.
 
@@ -148,7 +148,7 @@ as SLC, one bit per cell instead of three, is rated 35 random-write DWPD (Micron
 XTR)~\cite{ds_micronxtr}, and a native SLC drive 50 DWPD (Solidigm D7-P5810)~\cite{ds_solidigm}.
 Micron and Solidigm rate random 4\,KB writes; Micron rates 128\,KB sequential writes 1.7 to 4.4
 times higher for the same 7450 drive~\cite{ds_micron7450}. Write amplification (WAF), the flash pages programmed per page written by the host,
-multiplies the wear; with greedy garbage collection under uniform random writes it is about 7 at
+multiplies the wear; with greedy garbage collection under uniform random writes it is 7.5 at
 7\% over-provisioning and 2.4 at 28\%~\cite{desnoyers,vanhoudt}.
 
 \textbf{KV caches.} Serving engines split a prompt into blocks of 16 to 512 tokens identified by a
@@ -204,11 +204,11 @@ filters flash admission in DRAM, with a learned predictor~\cite{flashield}); and
 which admits a block only if it will be referenced again, a bound on what a reuse predictor can
 know. With BF16 KV at full prefill duty, second hit writes 0.73 to 1.13 times as much as the oracle
 (0.71 to 2.0 over the whole sweep) and loses 2 to 41\% of its hits (median 15\%), because the
-second reference often arrives after the block has left the DRAM cache. FP8 and INT4 KV also
+second reference arrives after the block has left the DRAM cache. FP8 and INT4 KV also
 enlarge the device's capacity in blocks.
 
 \textbf{Per-node scaling.} A trace is one stream of users; a node serving $S$ times its traffic
-interleaves $S$ independent streams, which stretches reuse distances about $S$-fold. We model the
+interleaves $S$ independent streams, which stretches reuse distances $S$-fold on average. We model the
 node by dividing the device's DRAM and NAND by $S$ and find $S$ as a fixed point:
 \begin{equation}
 G \cdot F \cdot u \cdot d \,/\, (2P) = S \cdot m(C/S),
@@ -229,10 +229,11 @@ for uniform random writes~\cite{desnoyers}, and Table~\ref{tab:mqsim} against MQ
 a validated SSD simulator (patched to fix a crash; runs that complete unpatched give identical
 results), on three KV write streams: two LRU streams from a reduced device on the Bailian chat
 trace and the request-scoped stream. With MQSim's reserve of 10 free blocks the two agree within
-4.5\% on the KV streams and within 11.3\% on uniform random writes. When a trace is too short for
-the NAND to be overwritten several times, we append copies of the trace with new block identifiers
-(new users) for the write-amplification measurement only; for 25\% of the 2\,TB cases and 10\% of
-the 667\,GB cases even that is not enough and we take write amplification as 1. With 512-token
+4.5\% on the KV streams and within 11.3\% on uniform random writes. When a trace writes less than four
+times the NAND capacity, we append copies of it with new block identifiers (new users), at most 12
+copies in all, for the write-amplification measurement only; for 25\% of the 2\,TB cases and 10\% of
+the 667\,GB cases the stream still writes less than three times the capacity and we take write
+amplification as 1. With 512-token
 Mooncake blocks, at most one KV block of Llama-3.1-70B, or of DeepSeek-V3 with BF16 KV, fits in an
 erase block; these cases (15\% of the sweep) have write amplification 1 by construction.
 
@@ -313,9 +314,9 @@ how KV dies, on the Bailian thinking trace with 64 KV blocks per erase block.}
 \label{fig:waf}
 \end{figure}
 
-The right panel isolates the cause. An LRU cache evicts blocks roughly in write order, so whole
-erase blocks die together and garbage collection copies almost nothing: write amplification 1.00
-to 1.02. HiFC reports 1.02 from host-side SMART counters for append-only writes on a consumer
+The right panel isolates the cause. An LRU cache evicts blocks nearly in write order, so whole
+erase blocks die together and garbage collection copies at most 2\% extra pages: write
+amplification 1.00 to 1.02. HiFC reports 1.02 from host-side SMART counters for append-only writes on a consumer
 drive~\cite{hifc}. If instead KV is kept per request and freed when the request ends, concurrent requests interleave
 their blocks in every erase block and end at different times. This is how a tier behaves when it
 holds the KV of live requests rather than a prefix cache: preempted or swapped requests~\cite{vllm},
@@ -333,8 +334,8 @@ requests die at once. NVMe SSDs can also separate lifetimes with lifecycle-aware
 ScaleFlux reports more than halved write amplification for KV in preliminary
 tests~\cite{scaleflux}; SPLASH gives each request its own HBF region and erases it as a
 unit~\cite{splash}. Both need control of flash placement that CXL.mem does not give the host. A hybrid CXL
-device that stores request-scoped KV therefore needs either generous
-over-provisioning or a way for the host to declare data dead, and a serving engine that frees KV
+device that stores request-scoped KV therefore needs either 28\%
+over-provisioning, which still leaves write amplification at 2.0, or a way for the host to declare data dead, and a serving engine that frees KV
 in LRU order avoids the problem.
 
 \section{Telling the device that KV is dead}
@@ -345,10 +346,11 @@ when a request ends, so it can say so. We evaluate a per-request discard. When a
 engine sends one command that names the request's blocks; the device drops their copies from its
 DRAM without writing them back, trims them in the FTL and acknowledges. The host reuses a block's
 address only after the acknowledgment, so a late discard never hits new data, the hazard Lee et al.\
-point out for TRIM over CXL.io~\cite{trimcxl}. One command per finished request is a low rate: 1.5
-per second on the Bailian thinking trace, and at most about 100 per second when the trace is scaled
+point out for TRIM over CXL.io~\cite{trimcxl}. One command per finished request is 1.5
+per second on the Bailian thinking trace, and at most 101 per second when the trace is scaled
 to a node ($S \le 67$ in our sweep). The management path (a CXL.io mailbox command) is fast enough
-if a command completes in under 10\,ms or covers several requests, and CXL.mem needs no change. Lee
+if a command completes in under 10\,ms or names every request that ended while the previous command
+ran, and CXL.mem needs no change. Lee
 et al.\ propose TRIM as a privileged, asynchronous CXL.io command issued by the operating system or
 by applications through a system call, and leave the initiator layer, granularity and frequency
 open~\cite{trimcxl}; here the initiator is the serving
@@ -386,19 +388,19 @@ and trimming cuts write amplification from 4.9--5.3 to 1.26--1.87. Addresses wai
 acknowledgment peak at 3.5\% of the peak live KV, but they peak when live KV is low: with 1\% extra
 address space no allocation stalls at 1 to 100\,ms per command. The command channel fails only when completions per second times the command latency
 exceed 1: at 1\,s per command and 1.5 completions per second the queue grows without bound, the
-host stalls on about 10,000 allocations and the gain falls to 1.5 to 2.9 times. At node scale a
-command must therefore take under 10\,ms or cover several requests. On this trace the peak live KV
+host stalls on 9,965 allocations and the gain falls to 1.5 to 2.9 times. At node scale (101 completions per second) a
+command must therefore take under 10\,ms or cover the requests that ended while the previous one ran. On this trace the peak live KV
 is 731\,GB for Llama-3.1-70B and 157\,GB for DeepSeek-V3, so 10 to 25\% of it is 16 to 39\,GB of
 device DRAM for DeepSeek-V3, within CMM-H's 48\,GB, but 73 to 183\,GB for Llama-3.1-70B. For a
-prefix cache, device DRAM changes NAND writes by under 5\% in most cases (Section~\ref{sec:prov});
-it saves flash only when the device learns what is dead.
+prefix cache with second-hit admission, 16 to 256\,GB of device DRAM changes NAND writes by at most
+1.1\% (Section~\ref{sec:prov}); DRAM saves flash only when the device learns what is dead.
 
 \section{Provisioning}
 \label{sec:prov}
 Figure~\ref{fig:prov} gives the cheapest flash class that lasts five years with second-hit
 admission. Four rules follow.
 \begin{enumerate}
-\item \emph{Admission control is mandatory.} Admit-all never fits TLC, fits pseudo-SLC only for
+\item \emph{Admission control is mandatory.} Admitting everything never fits TLC, fits pseudo-SLC only for
 DeepSeek-V3 with INT4 KV at partial prefill duty (4 of 54 cases), and at full prefill duty fits
 nothing in 48 of 54 cases.
 \item \emph{Workload decides the flash class.} TLC fits API-like traffic at partial prefill duty
@@ -406,26 +408,28 @@ nothing in 48 of 54 cases.
 conversation and agent) only in 2 of 36, all DeepSeek-V3 with INT4 KV. Interactive
 traffic needs pseudo-SLC or SLC, and 16 of its 36 cases at full prefill duty (and 2 of 36 at partial
 duty) exceed even 100\,TB/day.
-\item \emph{KV precision is worth about one flash class.} FP8 halves and INT4 quarters the NAND
-writes (0.49 and 0.24 times BF16 on average).
-\item \emph{Model architecture matters as much as traffic.} With second-hit admission, MLA writes
-2.3 to 2.8 times less than a GQA 70B model per node, and small GQA models write the most.
+\item \emph{KV precision is worth one flash class.} FP8 halves and INT4 quarters the NAND
+writes (0.49 and 0.24 times BF16 on average); INT4 instead of BF16 moves 33 of 36 trace, model and
+duty cases down exactly one class, one case two classes and two cases none.
+\item \emph{Attention architecture changes the write rate.} With second-hit admission, MLA
+(DeepSeek-V3) sends 2.3 to 2.9 times less KV to NAND than GQA Llama-3.1-70B per node, and the 7B GQA
+model sends the most in all 36 cases.
 \end{enumerate}
 Drives announced for KV caching at 7 to more than 10 DWPD~\cite{scaleflux} would cover, at 10 DWPD
 (20\,TB/day on a 2\,TB device), 31 of the 54 cases at partial prefill duty and 9 of 54 at full duty with
 second-hit admission; at 7 DWPD, 21 and 4. Using the 1.7 times higher sequential rating for TLC moves 9 of the 108 cases from pseudo-SLC to
 TLC; interactive traffic then fits TLC in 6 of 36 cases at partial duty, still all DeepSeek-V3, now
-with FP8 or INT4 KV. Pseudo-SLC's smaller capacity (667\,GB) costs little: the median hit share drops
-by 1.4 points and the write rate is unchanged in the median. A second wall is bandwidth: 7\% of the
-cases (22 of 324) need more than the about 5\,GB/s that the 48\,GB CMM-H sustains once its working
-set is much larger than its DRAM cache~\cite{cmmh_hs}, all of them with admit-all or Qwen2.5-7B.
+with FP8 or INT4 KV. Pseudo-SLC's smaller capacity (667\,GB) lowers the median hit share by 1.4 points
+and leaves the median write rate unchanged. A second wall is bandwidth: 7\% of the
+cases (22 of 324) need more than the about 5\,GB/s that the 48\,GB CMM-H sustains when its working
+set does not fit in its DRAM cache~\cite{cmmh_hs}, all of them with admit-all or Qwen2.5-7B.
 
 \textbf{Device DRAM size.} Growing the device's DRAM cache from 16 to 256\,GB (Bailian API, chat
 and thinking traces, Llama-3.1-70B and DeepSeek-V3, BF16, full duty, second-hit and oracle
-admission) changes the NAND writes by $-32$ to $+6\%$, and by under 5\% in most cases, while the
-share of hits served from DRAM rises from 0.24--0.49 to 0.35--0.90. A larger DRAM cache improves hit
-latency but not lifetime: in a node serving many users, a block's reuse arrives long after it has
-left any affordable DRAM cache.
+admission) changes the NAND writes by at most 1.1\% with second-hit admission and by $-1.6$ to $-32\%$ with
+oracle admission, while the share of hits served from DRAM rises from 0.24--0.49 to 0.35--0.90. A
+larger DRAM cache improves hit latency but not lifetime: with $S$ interleaved streams, even 256\,GB
+of DRAM evicts a block before its next reference, so second-hit admission writes it to NAND anyway.
 
 \begin{figure}[t]
 \centering
@@ -453,7 +457,7 @@ makes NAND hits worth serving.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.75\textwidth]{fig_load.pdf}
+\includegraphics[width=0.8\textwidth]{fig_load.pdf}
 \Description{Break-even load bandwidth versus context length for each model and KV precision on H100 nodes, with horizontal lines for the device's DRAM and NAND bandwidth.}
 \caption{Bandwidth above which loading KV beats recomputing it on 8 H100 GPUs, with measured
 device bandwidths.}
@@ -472,8 +476,7 @@ random routing and writes 1.03 to 1.9 times fewer blocks, but beats cache-aware 
 pool than for per-node local caches with prefix-aware routing, on 10 prefill nodes of 3M tokens
 each~\cite{mooncake}. Reproducing that
 setup, the pool gains 3 to 10\% when the scheduler allows 5 to 100\% imbalance, 15 to 43\% when it
-balances exactly and up to 165\% when it ignores load (Figure~\ref{fig:pool}, right). The value of
-a pool therefore depends mostly on how strictly the scheduler balances load, which also bounds what
+balances exactly and up to 165\% when it ignores load (Figure~\ref{fig:pool}, right). The scheduler's balance limit alone moves the pool's gain from 3 to 165\%, which also bounds what
 a pooled CXL tier saves in wear.
 
 \begin{figure}[t]
@@ -501,8 +504,9 @@ rated for it~\cite{scaleflux}. These target on-package HBF or block SSDs; we mod
 device, whose DRAM cache and missing TRIM change both the write stream and its amplification.
 
 \textbf{KV caches on hybrid CXL memory.} HyMCache~\cite{hymcache}, ITME~\cite{itme},
-LM-CXD~\cite{lmcxd} and TempoKV~\cite{tempokv} build KV caches on CXL-attached flash and evaluate
-latency and throughput. CMM-H has been characterized~\cite{cmmh,cmmh_hs} and emulated~\cite{cylon}.
+TempoKV~\cite{tempokv} and LM-CXD~\cite{lmcxd} build KV caches on CXL-attached flash and evaluate
+latency and throughput. Two studies measure CMM-H~\cite{cmmh,cmmh_hs}, and Cylon emulates CXL-attached
+SSDs~\cite{cylon}.
 
 \textbf{Flash management.} Greedy garbage collection under uniform writes has closed
 forms~\cite{desnoyers,vanhoudt}, and MQSim simulates multi-queue SSDs~\cite{mqsim}. Lee et al.\
@@ -524,8 +528,8 @@ the cache. The traces cover one to two hours, so daily cycles are not represente
 
 \textbf{Write amplification.} Our FTL matches closed forms and MQSim but not a specific drive; a
 quarter of the 2\,TB cases and a tenth of the pseudo-SLC cases are too short to reach steady state
-and use write amplification 1, and in 15\% only one KV block fits in an erase block. Devices with
-large superblocks or internal DRAM write coalescing will differ.
+and use write amplification 1, and in 15\% only one KV block fits in an erase block. Devices that
+stripe erase blocks across dies into superblocks or coalesce writes in internal DRAM will differ.
 
 \textbf{Retention.} KV needs minutes to hours of retention, not the months that enterprise ratings
 assume; relaxing internal retention from three years to three days could raise MLC endurance by up
@@ -537,8 +541,8 @@ would move 22 of the 34 interactive cases that need SLC to TLC. We leave this to
 send a discard when request-scoped KV dies, and admit only reused blocks. For device
 designers: a way for the host to declare data dead, such as TRIM for CXL memory~\cite{trimcxl},
 together with dropping the dead data from device DRAM, is worth 3.4 to 9.1 times in flash writes for
-request-scoped KV (Section~\ref{sec:discard}), and
-relaxed retention could move interactive traffic to cheaper flash. For operators: the provisioning
+request-scoped KV (Section~\ref{sec:discard}), and a
+tenfold endurance gain from relaxed retention would move 22 of the 34 interactive cases that need SLC to TLC. For operators: the provisioning
 rules of Section~\ref{sec:prov} pick the flash class from the traffic type, KV precision and
 prefill duty.
 
@@ -546,8 +550,8 @@ prefill duty.
 How KV dies decides how flash wears. An LRU KV cache on a hybrid CXL device keeps write
 amplification near 1, while request-scoped KV on CXL.mem, which has no TRIM, raises it to 5.2.
 Even near 1, the write rate itself is the wall: with second-hit admission a hybrid device lasts five
-years on TLC flash in only 10 of 108 cases, mostly API-like traffic at partial prefill duty and
-4-bit MLA KV at partial duty. Interactive traffic needs pseudo-SLC or SLC, or a device that trades retention for endurance.
+years on TLC flash in only 10 of 108 cases: 7 on the API trace and 3 with 4-bit DeepSeek-V3 KV at partial
+prefill duty. Interactive traffic needs pseudo-SLC or SLC, or a device that trades retention for endurance.
 Admission control and lower KV precision are the cheapest levers, and for request-scoped KV a
 discard per finished request cuts flash writes 3.4 to 9.1 times.
 

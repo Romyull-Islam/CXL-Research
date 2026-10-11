@@ -15,9 +15,12 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 R = ROOT / "results"
 sys.path.insert(0, str(ROOT / "analysis"))
+import figfont  # noqa: E402
+
+figfont.use(figfont.LIBERTINE, "Linux Libertine TT")
 
 plt.rcParams.update({"font.size": 7.5, "axes.linewidth": 0.6, "lines.linewidth": 1.1, "lines.markersize": 3.5,
-                     "legend.fontsize": 7, "legend.frameon": False, "pdf.fonttype": 42})
+                     "legend.fontsize": 7, "legend.frameon": False})
 TRACES = {"bailian_B_api": "Bailian API", "bailian_thinking": "Bailian thinking",
           "mooncake_toolagent": "Mooncake tool-agent", "mooncake_conversation": "Mooncake conversation",
           "bailian_coder": "Bailian coder", "bailian_A_chat": "Bailian chat"}
@@ -40,7 +43,7 @@ def fig_wear():
     for ax, (m, mlab) in zip(axes, MODELS.items()):
         for name, b in BUDGETS:
             ax.axvline(b, color="0.55", lw=0.6, ls=":")
-            ax.text(b, len(TRACES) - 0.35, name.replace(" DWPD", ""), rotation=90, fontsize=6,
+            ax.text(b, len(TRACES) + 0.75, name.replace(" DWPD", ""), rotation=90, fontsize=6,
                     ha="right", va="top", color="0.35")
         for i, t in enumerate(TRACES):
             v = [d[(d.model == m) & (d.trace == t) & (d.admit == a)].TBday_op28.iloc[0] for a in ADMIT_C]
@@ -54,7 +57,7 @@ def fig_wear():
         ax.grid(axis="x", alpha=0.3, lw=0.4)
         ax.set_xlabel("NAND writes (TB/day)")
     axes[0].set_yticks(y, list(TRACES.values()))
-    axes[0].set_ylim(-0.6, len(TRACES) - 0.2)
+    axes[0].set_ylim(-0.6, len(TRACES) + 0.8)
     h, lab = axes[0].get_legend_handles_labels()
     fig.legend(h, lab, loc="upper center", ncol=3, bbox_to_anchor=(0.55, 1.02))
     fig.tight_layout(pad=0.3, rect=(0, 0, 1, 0.92))
@@ -154,11 +157,14 @@ def fig_waf():
         rows.append((name, r.op, r.waf))
     names = list(dict.fromkeys(n for n, _, _ in rows))
     xx = np.arange(len(names))
-    for j, (op, c) in enumerate(((0.07, "#4C72B0"), (0.28, "#DD8452"))):
+    for j, (op, c) in enumerate(((0.07, "0.3"), (0.28, "0.7"))):
         y = [next(w for n, o, w in rows if n == nm and abs(o - op) < 1e-9) for nm in names]
         axes[1].bar(xx + (j - 0.5) * 0.38, y, 0.38, color=c, label=f"{int(op * 100)}% OP")
+        for xv, yv in zip(xx + (j - 0.5) * 0.38, y):
+            axes[1].text(xv, yv + 0.06, f"{yv:.2f}", ha="center", va="bottom", fontsize=5.5)
     axes[1].set_xticks(xx, names, fontsize=6.5)
     axes[1].set_ylabel("write amplification")
+    axes[1].set_ylim(0, 5.8)
     axes[1].legend()
     axes[1].grid(axis="y", alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.4)
@@ -195,9 +201,9 @@ def fig_pool():
         if parts[0] == "prefix-aware":
             rows.append((trace, float(parts[2].rstrip(":")), float(parts[7].rstrip("%")), float(parts[9])))
     rp = pd.DataFrame(rows, columns=["trace", "slack", "advantage", "imbalance"])
-    for t, c in (("conversation", "#C44E52"), ("toolagent", "#4C72B0")):
+    for t, c, mk in (("conversation", "0.15", "o"), ("toolagent", "0.6", "s")):
         y = rp[(rp.trace == t) & (rp.slack < 1e6)]
-        axes[2].plot(y.imbalance, y.advantage, color=c, marker="o", label={"conversation": "Mooncake conversation", "toolagent": "Mooncake tool-agent"}[t])
+        axes[2].plot(y.imbalance, y.advantage, color=c, marker=mk, label={"conversation": "Mooncake conversation", "toolagent": "Mooncake tool-agent"}[t])
     axes[2].axhline(136, color="k", lw=0.6, ls=":")
     axes[2].text(1.05, 122, "Mooncake paper: +136%", fontsize=6)
     axes[2].set_ylim(0, 150)
@@ -211,14 +217,14 @@ def fig_pool():
 
 
 def fig_load():
+    from matplotlib.lines import Line2D
     d = pd.read_csv(R / "load_vs_recompute.csv")
     d = d[d.gpu == "8x H100"]
     fig, ax = plt.subplots(figsize=(4.4, 2.3))
     cols = {"DeepSeek-V3": "#C44E52", "Llama-3.1-70B": "#4C72B0", "Qwen2.5-7B": "#55A868"}
     ls = {"BF16": "-", "FP8": "--", "INT4": ":"}
     for (m, p), g in d.groupby(["model", "precision"]):
-        ax.plot(g.context, g.breakeven_GBs, color=cols[m], ls=ls[p], marker="o",
-                label=f"{m.split('-')[0]} {p}" if p == "BF16" else None)
+        ax.plot(g.context, g.breakeven_GBs, color=cols[m], ls=ls[p], marker="o")
     for name, b in (("CMM-H NAND 5", 5.0), ("CMM-H DRAM 27", 27.0)):
         ax.axhline(b, color="k", lw=0.5, ls=":")
         above = b < 10
@@ -227,10 +233,14 @@ def fig_load():
     ax.set_xscale("log", base=2)
     ax.set_yscale("log")
     ax.set_xlim(2 ** 10.7, 2 ** 15.3)
+    ax.set_xticks([2 ** k for k in range(11, 16)], ["2K", "4K", "8K", "16K", "32K"])
+    ax.set_yticks([0.5, 1, 2, 5, 10, 20], ["0.5", "1", "2", "5", "10", "20"])
+    ax.minorticks_off()
     ax.set_xlabel("context tokens")
     ax.set_ylabel("break-even bandwidth (GB/s)")
-    ax.legend(fontsize=6, loc="upper left", bbox_to_anchor=(1.01, 1.0),
-              title="BF16 solid\nFP8 dashed\nINT4 dotted", title_fontsize=6)
+    h = [Line2D([], [], color=c, marker="o", label=MODELS[m]) for m, c in cols.items()]
+    h += [Line2D([], [], color="0.3", ls=v, label=f"{k} KV") for k, v in ls.items()]
+    ax.legend(handles=h, fontsize=6, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.4)
     fig.savefig(HERE / "fig_load.pdf")

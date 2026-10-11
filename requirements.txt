@@ -3,3 +3,5 @@ pandas
 pyarrow
 scipy
 pytest
+matplotlib
+fonttools

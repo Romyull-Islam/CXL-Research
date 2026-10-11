@@ -111,8 +111,9 @@ pseudo-SLC or SLC,
    prototype's peak with cache-resident data, not its NAND path.)
 
 Device DRAM size (results/dram_sensitivity.csv; Bailian API, chat and thinking, Llama-3.1-70B and
-DeepSeek-V3, BF16, full duty): 16 to 256 GB of DRAM cache changes NAND writes by -32 to +6% (under
-5% in most cases) while the DRAM share of hits rises from 0.24-0.49 to 0.35-0.90. DRAM buys hit
+DeepSeek-V3, BF16, full duty): 16 to 256 GB of DRAM cache changes NAND writes by at most 1.1% with
+second-hit admission and by -1.6 to -32% with oracle admission (corrected 2026-10-10; +6% was not
+in the CSV) while the DRAM share of hits rises from 0.24-0.49 to 0.35-0.90. DRAM buys hit
 latency, not lifetime.
 
 ## Reading
