@@ -65,6 +65,43 @@ def first_order():
     fig.savefig(HERE / "fig_model.pdf")
 
 
+def teaser():
+    """Model-predicted against measured gain: simulated preemption runs (gain = R / rho) and real
+    vLLM document questions (Eq. 1 with the measured c_r and c_l)."""
+    d = pd.read_csv(R / "gate2_saturation.csv")
+    r = d[d.policy == "recompute"].copy()
+    r["rho"] = ((r.busy_time - r.recompute_time) / r.out_tokens) / (r.recompute_time / r.recomputed_tokens)
+    s = d[d.policy == "swap"].set_index(["deploy", "wname", "kernel"]).throughput
+    r["gain"] = (s.loc[list(zip(r.deploy, r.wname, r.kernel))].values / r.throughput.values - 1) * 100
+    r["model"] = r.recomputed_per_out / r.rho * 100
+    q = pd.read_csv(R / "reuse" / "summary.csv")
+    fig, ax = plt.subplots(figsize=(3.5, 1.9))
+    lim = (1, 600)
+    ax.plot(lim, lim, color="k", lw=0.5)
+    ax.fill_between(lim, [v / 1.2 for v in lim], [v * 1.2 for v in lim], color="0.85", lw=0)
+    ax.scatter(r.model, r.gain, s=7, color="#4C72B0", label="preempted KV, simulated (56 runs)", zorder=3)
+    ax.scatter(q.gain_predicted * 100, q.gain_measured * 100, s=22, marker="D", color="#C44E52",
+               label="reused KV, real vLLM", zorder=4)
+    for _, row in q.iterrows():
+        ax.annotate(f"R={row.R:.0f}", (row.gain_predicted * 100, row.gain_measured * 100),
+                    xytext=(4, -9), textcoords="offset points", fontsize=6)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(*lim)
+    ax.set_ylim(*lim)
+    ticks = [1, 3, 10, 30, 100, 300]
+    ax.set_xticks(ticks, [str(t) for t in ticks])
+    ax.set_yticks(ticks, [str(t) for t in ticks])
+    ax.minorticks_off()
+    ax.set_xlabel("model gain (%)")
+    ax.set_ylabel("observed gain (%)")
+    ax.text(1.3, 300, "line: model = observed;\nband: within 20%", fontsize=6, va="top")
+    ax.legend(loc="lower right")
+    ax.grid(alpha=0.3, lw=0.4)
+    fig.tight_layout(pad=0.3)
+    fig.savefig(HERE / "fig_teaser.pdf")
+
+
 def capacity():
     c = pd.read_csv(R / "gate2_capacity.csv")
     s = pd.read_csv(R / "gate2_saturation.csv")
@@ -73,7 +110,7 @@ def capacity():
     full = s[s.policy == "swap"].set_index(["deploy", "wname"]).throughput
     k = list(zip(c.deploy, c.wname))
     c["kept"] = (c.throughput.values / rec.loc[k].values - 1) / (full.loc[k].values / rec.loc[k].values - 1)
-    fig, ax = plt.subplots(figsize=(3.5, 1.6))
+    fig, ax = plt.subplots(figsize=(3.5, 1.9))
     for (w, pol), g in c.groupby(["wname", "policy"]):
         m = g.groupby("tier_mult").kept.median()
         ax.plot(m.index, m.values * 100, marker="o", ls="-" if pol == "swap" else "--",
@@ -84,7 +121,7 @@ def capacity():
     ax.minorticks_off()
     ax.set_xlabel("tier capacity / HBM KV capacity")
     ax.set_ylabel("gain kept (%)")
-    ax.legend(fontsize=5, ncol=2, loc="lower right")
+    ax.legend(fontsize=5.5, ncol=2, loc="upper center", bbox_to_anchor=(0.5, 1.42))
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
     fig.savefig(HERE / "fig_capacity.pdf")
@@ -92,6 +129,6 @@ def capacity():
 
 if __name__ == "__main__":
     gains()
-    first_order()
+    teaser()
     capacity()
     print("ok")
