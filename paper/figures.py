@@ -9,12 +9,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
+import figfont  # noqa: E402
+
 HERE = Path(__file__).resolve().parent
 G = HERE.parent / "gem5-model" / "results"
 STYLE = {"flush": ("flush poll", "#888888", "s"), "uc": ("uncached poll", "#55A868", "v"),
          "lines": ("line poll", "#4C72B0", "^"), "parked": ("parked flag", "#DD8452", "D"),
          "wbpark": ("parked line fill", "#C44E52", "o")}
-plt.rcParams.update({"pdf.fonttype": 42, "font.family": "serif", "font.serif": ["Liberation Serif", "DejaVu Serif"], "font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
+figfont.use(figfont.TIMES, "Nimbus Roman TT")
+plt.rcParams.update({"font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
                      "legend.fontsize": 6, "legend.frameon": False})
 
 
@@ -45,10 +48,11 @@ def contention():
     for p in ("flush", "uc", "parked", "wbpark"):
         lab, c, mk = STYLE[p]
         x = pd.concat([base, d[d.protocol == p]]).sort_values("waiters")
-        axes[0].plot(x.waiters, x.tenant_GBs, color=c, marker=mk, label=lab)
+        kw = dict(color=c, marker=mk, label=lab, mfc="white" if p in ("flush", "parked") else c, mew=0.8)
+        axes[0].plot(x.waiters, x.tenant_GBs, **kw)
         y = lw[lw.protocol == p].sort_values("mean_wait_us")
-        axes[1].plot(y.mean_wait_us, y.reads_per_msg, color=c, marker=mk, label=lab)
-    axes[0].set_ylabel("tenant GB/s")
+        axes[1].plot(y.mean_wait_us, y.reads_per_msg, **kw)
+    axes[0].set_ylabel("tenant bandwidth (GB/s)")
     axes[0].set_xlabel("waiting threads")
     axes[0].set_ylim(0, 50)
     axes[1].set_xscale("log")
@@ -62,7 +66,7 @@ def contention():
         ax.grid(alpha=0.3, linewidth=0.4)
     axes[0].legend(loc="lower left")
     fig.tight_layout(pad=0.3)
-    fig.savefig(HERE / "fig_contention.pdf")
+    fig.savefig(HERE / "fig_contention.pdf", bbox_inches="tight", pad_inches=0.02)
 
 
 if __name__ == "__main__":

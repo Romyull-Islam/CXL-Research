@@ -2,6 +2,8 @@
 \usepackage{fontspec}
 \setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,
   ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\usepackage{unicode-math}
+\setmathfont{texgyretermes-math.otf}
 \usepackage{graphicx}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,decorations.pathreplacing}
@@ -25,10 +27,11 @@ USA (e-mail: mislam22@students.kennesaw.edu).}}% department to be added
 \maketitle
 
 \begin{abstract}
-Hosts that share CXL memory have little or no cross-host hardware coherence, so the systems built on
-it synchronize by flushing and polling or confine synchronization to a small coherent region, and
+Hosts that share CXL memory have no cross-host hardware coherence unless the device implements
+back-invalidation, so the systems built on it synchronize by flushing and polling or, like Tigon,
+confine synchronization to a hardware-coherent region capped at 200\,MB, and
 every poll is a device access that other tenants of the memory pool pay for. A CXL device could
-instead hold a read of an unwritten line until another host's write lands, an old idea, but it must
+instead hold a read of an unwritten line until another host's write lands, an idea as old as HEP's full/empty bits, but it must
 do so without breaking the protocol: request credits are finite, hosts
 fail independently, and a read that outlives the Root Port's completion timeout fails and can
 isolate the port. We give five rules under which a device parks a CXL.mem read safely, and show
@@ -46,9 +49,9 @@ CXL, memory pooling, synchronization, full/empty bits, multi-host shared memory
 
 \section{Introduction}
 CXL 2.0 pools a memory device among up to 16 hosts, each region dedicated to one host; CXL 3.0 adds
-shared memory that several hosts load and store, and back-invalidation (BI) for hardware coherence.
+shared memory that two or more hosts load and store, and back-invalidation (BI) for hardware coherence.
 Shared memory exposed as HDM-H supports only software coherence between hosts~\cite{cxl3}, and
-systems built so far keep any coherent region small~\cite{tigon}. Cross-host communication therefore
+Tigon caps its hardware-coherent region at 200\,MB~\cite{tigon}. Cross-host communication therefore
 runs on software protocols: a producer writes a message and a flag, and the consumer flushes its
 cached copy and re-reads the flag until it changes. MPI and RPC over CXL poll message
 queues~\cite{cmpi,hydrarpc}, a GPU collective library polls a per-chunk doorbell in the
@@ -105,7 +108,7 @@ Polling has two costs (Fig.~\ref{fig:idea}a). The waiter learns of the write onl
 and each poll is a device access, so waiting threads consume bandwidth that other tenants of a
 shared pool need. The device is the only place that sees both the waiting read and the releasing
 write, so it can answer the read when the write lands (Fig.~\ref{fig:idea}b). Holding a read in
-memory until it can be satisfied is not new (Section~\ref{sec:prior}); we do not claim the waiting
+memory until it can be satisfied dates to HEP and I-structures (Section~\ref{sec:prior}); we do not claim the waiting
 primitive. We claim that it can be made safe on CXL.mem, where the waiter and the writer are
 independent hosts behind a switch or a multi-headed device, request credits are finite, a read must
 not outlive a completion timeout whose expiry fails it and can isolate the port, the protocol has
@@ -123,8 +126,8 @@ that measures handoff latency and the fabric bandwidth polling waiters take from
 \section{Parked Loads}
 \label{sec:design}
 \textbf{Synchronization region.} The fabric manager marks an HDM range as a synchronization region.
-The device keeps one full/empty bit per 64\,B line, in SRAM for small regions (\SI{128}{\kibi\byte}
-covers \SI{64}{\mebi\byte}) or in device-private spare bits, not in the host-visible HDM-H metadata.
+The device keeps one full/empty bit per 64\,B line, in SRAM (\SI{128}{\kibi\byte}
+covers a \SI{64}{\mebi\byte} region) or in device-private spare bits, not in the host-visible HDM-H metadata.
 A write to a line stores the data, sets it \emph{full} and answers the reads parked on it. A second
 address window makes a read \emph{consuming} (it also sets the line empty, for single-consumer
 queues) and a write set the line empty. A read of an empty line moves from the request queue into a
@@ -157,7 +160,7 @@ write-back writer waits $\tau$ (17) \\
 \textbf{The rules.} \emph{R1:} parking moves the read out of the request queue, so other requests
 keep flowing; responses never block, because the requester preallocates its NDR and DRS
 buffers~\cite{cxl3}. \emph{R2:} with R1 no parked read occupies the request queue, so no write
-waits behind one; apart from a few same-address cases CXL orders neither message classes nor
+waits behind one; apart from same-address cases CXL orders neither message classes nor
 different addresses, so answering a parked read after later requests is legal, and a device already holds a
 read to a line with an outstanding back-invalidate snoop~\cite{cxl3}. \emph{R3:} when software
 enables timeout and isolation, an expired read gets a synthesized error response and the port is
@@ -179,7 +182,7 @@ non-consuming, so a prefetch cannot take a message; the waiter empties the line 
 store to the consuming window, off the critical path. A writer that uses write-allocating stores, as
 in our parked line fill runs, could wait in the miss buffer of its own parked prefetch; placing each
 sync line on its own 4\,KiB page prevents this for the L2 streamer and adjacent-line prefetchers,
-which stay within a page, but not for the next-page prefetchers of recent cores~\cite{intelopt}. The
+which stay within a page, but not for the next-page prefetcher in Intel's optimization manual~\cite{intelopt}. The
 non-allocating stores of R5 remove the case. A parked load stalls its thread for at most $\tau$.
 
 \textbf{Failures, fairness and cost.} When a host fails or its logical device is reset, the device
@@ -188,7 +191,7 @@ drops that host's entries (a design rule we did not model); waiters of a failed 
 line address, the requester's port and tag and a timer, at most 16\,B; 4,096 entries take
 \SI{64}{\kibi\byte}.
 
-\textbf{Prior art.}\label{sec:prior} Memory-side waiting is old. HEP and the Tera MTA retried accesses to
+\textbf{Prior art.}\label{sec:prior} HEP and the Tera MTA retried accesses to
 empty locations~\cite{tera}, and I-structures queued deferred reads at the
 location~\cite{istructures}. IBM's conditional load with timeout keeps pending conditional loads in
 a memory-controller table, replies when a store satisfies the condition or a timer
@@ -199,7 +202,7 @@ keeps synchronization state only for actively synchronized locations, and its sy
 of unavailable data fail rather than wait~\cite{ssb}; QOSB (later QOLB) keeps a hardware queue of
 lock waiters among caches~\cite{qolb}; Lustig and Martonosi stall GPU reads
 of empty locations at the memory controller until a CPU write and leave timeouts to future
-work~\cite{lustig}; and Callback reads block in a small directory at the last-level cache until a
+work~\cite{lustig}; and Callback reads block in a dedicated directory at the last-level cache until a
 write~\cite{callback}. These are special instructions inside one machine, where no fabric credit rule applies; IBM's
 bound is a processor load deadline, not a Root Port timeout. In CXL, Intel's patents queue atomic
 operations per host in a device~\cite{intelq} and queue keyed lock requests~\cite{intellock}, and
@@ -229,7 +232,7 @@ holds no credit.
 \textbf{Setup.} We add the device to gem5 v25.1~\cite{gem5} as a memory object: SimpleMemory timing
 (\SI{100}{\nano\second} access, a \SI{64}{\gibi\byte\per\second} port, at least one 64\,B line per
 access), full/empty bits, two address windows, a parked table and the timeout. Each host is its own
-gem5 system with out-of-order x86 cores (gem5's simple timing CPU for barriers, waiters and
+gem5 system with out-of-order x86 cores (gem5's TimingSimpleCPU for barriers, waiters and
 posters), 32\,KiB L1s, a 1\,MiB L2 with a stride prefetcher and its own coherence domain; hosts reach
 the device through a link with a flight delay and \SI{32}{\giga\byte\per\second}, meeting at a
 \SI{64}{\giga\byte\per\second} shared crossbar. The idle uncached round trip is
@@ -243,8 +246,8 @@ number, the fastest software scheme we test), \emph{parked flag} (uncached) and 
 fill}. In the parked line fill, writers use write-back stores, and the device recognizes their
 ownership reads directly (gem5's needsWritable flag), standing in for the marking of R5; the parked
 flag is written with uncached stores. gem5 charges a flush only its cache work, while the cMPI
-measurements imply about \SI{1.4}{\micro\second} (a flushed access of \SI{2.2}{\micro\second}
-against a cached one of \SI{0.79}{\micro\second})~\cite{cmpi}, so polling here is the cheap case. As
+measurements imply \SI{1.4}{\micro\second} (a flushed access of \SI{2.2}{\micro\second}
+against a cached one of \SI{0.79}{\micro\second})~\cite{cmpi}, so gem5 undercharges every flush poll. As
 a cross-check of the polling baseline, our earlier discrete-event model gives
 \SI{890}{\nano\second} for uncached flag polling of a 64\,B message on the expander and gem5
 \SI{944}{\nano\second}.
@@ -294,15 +297,15 @@ waiters as the mean wait grows past $\tau$.}
 
 \textbf{Shared-device contention.} Four tenant hosts stream reads at \SI{44.8}{\giga\byte\per\second}
 alone. Up to 128 polling waiters cost them under 2\%; with 256, every waiter issuing a device read
-per round trip, 39 per message, adds about \SI{29}{\giga\byte\per\second} of polls (39 reads of
+per round trip, 39 per message, adds \SI{29}{\giga\byte\per\second} of polls (39 reads of
 64\,B every \SI{22}{\micro\second} per waiter), the device saturates, and the tenants drop to 34.3
 (flush) and \SI{35.5}{\giga\byte\per\second} (uncached) (Fig.~\ref{fig:cont}). Parked waiters issue
 1.4 to 1.5 reads per message, the tenants keep 44.6 to \SI{44.7}{\giga\byte\per\second}, and handoff
 stays at 1.25 (line fill) and \SI{1.93}{\micro\second} (flag) against 2.25 and
-\SI{2.88}{\micro\second} for polling. With 64 waiters and a mean wait of \SI{500}{\micro\second}, far
-beyond $\tau$, a parked read times out and re-parks every \SI{25}{\micro\second}: 18 reads per
+\SI{2.88}{\micro\second} for polling. With 64 waiters and a mean wait of \SI{500}{\micro\second}, 20
+times $\tau$, a parked read times out and re-parks every \SI{25}{\micro\second}: 18 reads per
 message against 740 to 750 for polling, with handoff latency within 4\% of the
-\SI{20}{\micro\second} case. A table smaller than the number of waiters degrades toward polling:
+\SI{20}{\micro\second} case. A table with fewer entries than waiters degrades toward polling:
 with 128 or 32 entries for 256 waiters, overflowing reads are answered at once and retried (13 to
 32 reads per message), and the tenants keep 43.8 to 44.0 and 38.0 to
 \SI{39.1}{\giga\byte\per\second}, still more than with polling.
@@ -314,13 +317,22 @@ than gem5 charges, which favors polling. Each point is one deterministic run wit
 TLA+ model has one sync line and one producer, and only the producer fails; host failure in the
 device is not modeled.
 
+\textbf{What deployment needs.} Parking needs no change to CXL.mem messages: R1 to R3 are device
+behavior within the existing credit, ordering and timeout rules, R4 answers with an ordinary data
+response, and R5 uses existing stores (uncached or MOVDIR64B). Software needs one sync line per
+4\,KiB page, a sequence number per message and lease logic for failed producers. An explicit
+\emph{not yet} reply, which would replace the sequence-number check, needs a reserved metadata
+value or a new DRS opcode. The device needs 16\,B per parked entry (\SI{64}{\kibi\byte} for 4,096),
+\SI{128}{\kibi\byte} of SRAM per \SI{64}{\mebi\byte} of synchronization region, a timer per entry,
+and a parked-table lookup on every write to the region.
+
 \section{Conclusion}
 A CXL memory device is the one point that sees a waiting read and the write that satisfies it.
-Memory-side waiting is old; this letter shows that a multi-host CXL device can do it within
+Memory-side waiting dates to HEP and I-structures; this letter shows that a multi-host CXL device can do it within
 CXL.mem's credit, ordering and timeout rules, shows with a model checker that five rules suffice and
 four are individually needed, and shows in gem5 that parked waiters stop consuming a pooled device's
-bandwidth (1.4 to 1.5 instead of 39 reads per message, and 18 instead of 740 to 750 for waits far
-beyond $\tau$) while a parked flag stays as fast as flag polling or faster, except for barriers,
+bandwidth (1.4 to 1.5 instead of 39 reads per message, and 18 instead of 740 to 750 for
+\SI{500}{\micro\second} waits) while a parked flag stays as fast as flag polling or faster, except for barriers,
 where it is within 1.4\%.
 
 \bibliographystyle{IEEEtran}
