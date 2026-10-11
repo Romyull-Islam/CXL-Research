@@ -8,13 +8,16 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+import figfont  # noqa: E402
+
 HERE = Path(__file__).resolve().parent
 R = HERE.parent / "results"
-plt.rcParams.update({"pdf.fonttype": 42, "font.family": "serif", "font.serif": ["Liberation Serif", "DejaVu Serif"], "font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
-                     "legend.fontsize": 6, "legend.frameon": False, "pdf.fonttype": 42})
+figfont.use(figfont.TIMES, "Nimbus Roman TT")
+plt.rcParams.update({"font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
+                     "legend.fontsize": 6, "legend.frameon": False})
 DEP = ["70B-8xH100", "70B-8xH200", "70B-8xB200", "QwQ32B-2xH100", "QwQ32B-4xH100", "Qwen3-235B-FP8-8xH100",
        "R1-FP8-8xH200"]
-LAB = ["70B\nH100", "70B\nH200", "70B\nB200", "QwQ\n2xH100", "QwQ\n4xH100", "Q3-235B\nH100", "R1\nH200"]
+LAB = ["70B\nH100", "70B\nH200", "70B\nB200", "QwQ\n2×H100", "QwQ\n4×H100", "Q3-235B\nH100", "R1\nH200"]
 WL = {"bailian": "Bailian", "bo1": "best-of-1", "bo16": "best-of-16", "bo64": "best-of-64"}
 
 
@@ -34,12 +37,12 @@ def gains():
             e.append(g["fa2"] - g["fa3"])
         ax.bar(x + (j - 1.5) * 0.2, y, 0.2, color=cols[j], label=lab, yerr=[np.zeros(len(e)), e],
                error_kw=dict(lw=0.5, capsize=1))
-    ax.set_xticks(x, LAB, fontsize=5.5)
+    ax.set_xticks(x, LAB, fontsize=6)
     ax.set_ylabel("throughput gain (%)")
     ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.2))
     ax.grid(axis="y", alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
-    fig.savefig(HERE / "fig_gain.pdf")
+    fig.savefig(HERE / "fig_gain.pdf", bbox_inches="tight", pad_inches=0.02)
 
 
 def first_order():
@@ -83,8 +86,8 @@ def teaser():
     ax.scatter(q.gain_predicted * 100, q.gain_measured * 100, s=22, marker="D", color="#C44E52",
                label="reused KV, real vLLM", zorder=4)
     for _, row in q.iterrows():
-        ax.annotate(f"R={row.R:.0f}", (row.gain_predicted * 100, row.gain_measured * 100),
-                    xytext=(4, -9), textcoords="offset points", fontsize=6)
+        ax.annotate(rf"$R$ = {row.R:.0f}", (row.gain_predicted * 100, row.gain_measured * 100),
+                    xytext=(-6, 3), textcoords="offset points", fontsize=6, ha="right")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(*lim)
@@ -99,7 +102,7 @@ def teaser():
     ax.legend(loc="lower right")
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
-    fig.savefig(HERE / "fig_teaser.pdf")
+    fig.savefig(HERE / "fig_teaser.pdf", bbox_inches="tight", pad_inches=0.02)
 
 
 def capacity():
@@ -121,10 +124,10 @@ def capacity():
     ax.minorticks_off()
     ax.set_xlabel("tier capacity / HBM KV capacity")
     ax.set_ylabel("gain kept (%)")
-    ax.legend(fontsize=5.5, ncol=2, loc="upper center", bbox_to_anchor=(0.5, 1.42))
+    ax.legend(fontsize=6, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.0))
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
-    fig.savefig(HERE / "fig_capacity.pdf")
+    fig.savefig(HERE / "fig_capacity.pdf", bbox_inches="tight", pad_inches=0.02)
 
 
 if __name__ == "__main__":

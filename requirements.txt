@@ -5,4 +5,5 @@ huggingface_hub
 tokenizers
 scipy
 matplotlib
+fonttools
 pytest
