@@ -1,4 +1,5 @@
-"""Figures for the CAL letter from the gem5 results (gem5-model/results/*.csv).
+"""Figures for the CAL letter from the gem5 results (gem5-model/results/*.csv). Latency is reported as
+Table II in the letter; latency() is kept for reference.
 Run: python paper/figures.py"""
 from pathlib import Path
 
@@ -53,6 +54,7 @@ def contention():
     axes[1].set_xscale("log")
     axes[1].set_yscale("log")
     axes[1].set_xticks([20, 100, 500], ["20", "100", "500"])
+    axes[1].set_yticks([1, 10, 100, 1000], ["1", "10", "100", "1000"])
     axes[1].minorticks_off()
     axes[1].set_xlabel("mean wait (µs)")
     axes[1].set_ylabel("reads per message")
@@ -64,5 +66,4 @@ def contention():
 
 
 if __name__ == "__main__":
-    latency()
     contention()
