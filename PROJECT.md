@@ -99,7 +99,7 @@ LM-CXD and TempoKV (none measures wear), and a bandwidth check against measured 
 Left:
 Also done: write amplification cross-checked with MQSim (FAST'18) on the exported KV streams
 (analysis/mqsim, results/mqsim_crosscheck.csv), device DRAM sensitivity, load versus recompute, and
-the ACM TOS draft (paper/endurance_tos.tex, 12 pages, verified bibliography), titled "How KV Dies
+the ACM TOS draft (paper/endurance_tos.tex, 14 pages, verified bibliography), titled "How KV Dies
 Decides How Flash Wears": it leads with write amplification set by KV death order (LRU about 1,
 request-scoped 2.1 with TRIM and 5.2 without, the CXL.mem case), cites TRIM for CXL memory
 (HotStorage'25) and reconciles HBFlex's write amplification of about 30. It adds a mechanism:
