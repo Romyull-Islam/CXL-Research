@@ -83,11 +83,13 @@ def teaser():
     ax.plot(lim, lim, color="k", lw=0.5)
     ax.fill_between(lim, [v / 1.2 for v in lim], [v * 1.2 for v in lim], color="0.85", lw=0)
     ax.scatter(r.model, r.gain, s=7, color="#4C72B0", label="preempted KV, simulated (56 runs)", zorder=3)
-    ax.scatter(q.gain_predicted * 100, q.gain_measured * 100, s=22, marker="D", color="#C44E52",
-               label="reused KV, real vLLM", zorder=4)
-    for _, row in q.iterrows():
-        ax.annotate(rf"$R$ = {row.R:.0f}", (row.gain_predicted * 100, row.gain_measured * 100),
-                    xytext=(-6, 3), textcoords="offset points", fontsize=6, ha="right")
+    marks = {"DeepSeek-R1-Distill-Qwen-1.5B": ("D", "Qwen2 1.5B"), "DeepSeek-R1-Distill-Qwen-7B": ("s", "Qwen2 7B"),
+             "Llama-3.2-1B-Instruct": ("^", "Llama 1B"), "granite-3.1-1b-a400m-instruct": ("v", "MoE 1B")}
+    for m, (mk, lab) in marks.items():
+        x = q[q.model == m]
+        ax.scatter(x.gain_predicted_mixed * 100, x.gain_measured * 100, s=16, marker=mk, color="#C44E52",
+                   label=f"reused KV, vLLM, {lab}", zorder=4, linewidths=0.6,
+                   facecolors=["#C44E52" if b == "docqa" else "white" for b in x.bench])
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(*lim)
@@ -99,7 +101,8 @@ def teaser():
     ax.set_xlabel("model gain (%)")
     ax.set_ylabel("observed gain (%)")
     ax.text(1.3, 300, "line: model = observed;\nband: within 20%", fontsize=6, va="top")
-    ax.legend(loc="lower right")
+    ax.legend(loc="lower right", fontsize=5.5, handletextpad=0.2, borderaxespad=0.2)
+    ax.text(1.3, 120, "filled: synthetic documents\nhollow: LongBench", fontsize=5.5, va="top")
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
     fig.savefig(HERE / "fig_teaser.pdf", bbox_inches="tight", pad_inches=0.02)
@@ -113,25 +116,49 @@ def capacity():
     full = s[s.policy == "swap"].set_index(["deploy", "wname"]).throughput
     k = list(zip(c.deploy, c.wname))
     c["kept"] = (c.throughput.values / rec.loc[k].values - 1) / (full.loc[k].values / rec.loc[k].values - 1)
-    fig, ax = plt.subplots(figsize=(3.5, 1.9))
+    fig, ax = plt.subplots(figsize=(3.5, 1.7))
     for (w, pol), g in c.groupby(["wname", "policy"]):
         m = g.groupby("tier_mult").kept.median()
         ax.plot(m.index, m.values * 100, marker="o", ls="-" if pol == "swap" else "--",
                 color={"bailian": "#4C72B0", "bo16": "#DD8452", "bo64": "#C44E52"}[w],
-                label=f"{WL[w]}, {'swap' if pol == 'swap' else 'LRU write-through'}")
+                label=f"{WL[w]}, {'swap' if pol == 'swap' else 'LRU'}")
     ax.set_xscale("log")
     ax.set_xticks([0.05, 0.1, 0.25, 0.5, 1, 2, 4], ["0.05", "0.1", "0.25", "0.5", "1", "2", "4"])
     ax.minorticks_off()
     ax.set_xlabel("tier capacity / HBM KV capacity")
     ax.set_ylabel("gain kept (%)")
-    ax.legend(fontsize=6, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.0))
+    ax.legend(fontsize=5.5, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 1.0), columnspacing=0.8, handlelength=1.6, handletextpad=0.3)
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
     fig.savefig(HERE / "fig_capacity.pdf", bbox_inches="tight", pad_inches=0.02)
+
+
+def reuse_table():
+    """Table I: real vLLM, one row per model and benchmark, from results/reuse/summary.csv."""
+    d = pd.read_csv(R / "reuse" / "summary.csv")
+    names = {"DeepSeek-R1-Distill-Qwen-1.5B": "Qwen2 1.5B", "DeepSeek-R1-Distill-Qwen-7B": "Qwen2 7B",
+             "Llama-3.2-1B-Instruct": "Llama 1B", "granite-3.1-1b-a400m-instruct": "MoE 1B"}
+    lines = []
+    for m in names:
+        for b in ("docqa", "longbench"):
+            g = d[(d.model == m) & (d.bench == b)].sort_values("out")
+            gains = " / ".join(f"{v * 100:.0f}" for v in g.gain_measured)
+            def pct(x):
+                v = int(round(x * 100))
+                return f"{v:+d}" if v else "0"
+            e1 = f"{pct(g.error.min())}..{pct(g.error.max())}"
+            e2 = f"{pct(g.error_mixed.min())}..{pct(g.error_mixed.max())}"
+            lines.append(f"{names[m]} & {'synth.' if b == 'docqa' else 'LongB.'} & {gains} & "
+                         f"{e1.replace('..', ' to ')} & {e2.replace('..', ' to ')} \\\\")
+    body = "\n".join(lines).replace("-", "$-$")
+    head = ("\\begin{tabular}{llrrr}\n\\toprule\nmodel & bench & measured gain (\\%) & error, alone & "
+            "error, mixed \\\\\n\\midrule\n")
+    (HERE / "tab_reuse.tex").write_text(head + body + "\n\\bottomrule\n\\end{tabular}\n")
 
 
 if __name__ == "__main__":
     gains()
     teaser()
     capacity()
+    reuse_table()
     print("ok")

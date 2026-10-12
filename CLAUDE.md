@@ -18,8 +18,9 @@ findings/01-tts-kv-skew.md.
 ## Next step
 
 Recommendation: not a CXL architecture paper; an IEEE letter (paper/preempted_kv.tex, 4 pages, "When
-Does a KV Memory Tier Pay? A First-Order Model for LLM Serving"). Model: gain = R (c_r - c_l) / (c_d + R c_l). Tested on real vLLM (doc QA,
-findings/04): measured 13%, 82%, 342% at R = 7, 56, 896, predicted within 6 to 11%. Applied to
+Does a KV Memory Tier Pay? A First-Order Model for LLM Serving"). Model: gain = R (c_r - c_l) / (c_d + R c_l). Tested on real vLLM (findings/04): four models of three architectures
+(Qwen2 1.5B/7B, Llama 1B, Granite MoE), synthetic and LongBench documents; gains 6 to 372%, predicted
+within -2 to +15% with c_r timed alongside decoding (+4 to +33% with the standalone microbenchmark). Applied to
 preempted KV: 2 to 10% (simulator validated against LLMServingSim and real vLLM).
 An A100 run (README, analysis/a100_validate.py) would add larger models and is optional.
 If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM

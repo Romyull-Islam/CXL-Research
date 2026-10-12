@@ -27,3 +27,19 @@ Three repetitions each, spread of run time at most 1.1%. The model over-predicts
 A first analysis used the ideal run's time as T0; that is wrong, because with a small GPU cache
 fewer requests run at once and decode is slower per token (the 64-token case spends about 12 s in
 small-batch decode). The comparison must be at equal cache size, as above.
+
+## Four models, three architectures, two benchmarks (2026-10-11)
+
+Same setup on DeepSeek-R1-Distill-Qwen 1.5B and 7B (Qwen2), Llama-3.2-1B and Granite-3.1-1B-A400M
+(MoE, 8 of 32 experts), on synthetic 4,096-token documents and on 16 LongBench documents (2,048 to
+6,144 tokens, five tasks, real questions). results/reuse/summary.csv; runner
+analysis/run_reuse_models.sh. Gemma-3-1B did not start: its sliding-window layers need more than the
+fixed 2,048-block GPU cache.
+
+- Measured gains 6 to 372% at R = 7 to 1,027; spread at most 2.2% (17% for 4-token answers).
+- With c_r from the standalone prefill microbenchmark the model over-predicts in all 24 cases:
+  +4 to +12% on the dense models, +17 to +33% on the MoE model.
+- The error is in c_r: recompute in these runs shares steps with decoding. A mixed microbenchmark
+  (16 extra 4,096-token prefills added to 7 decoding requests; reuse_validate.py mixbench) gives c_r
+  3 to 5% lower on the dense models and 12 to 14% lower on the MoE model; with it the error is
+  -2 to +8% in 23 of 24 cases and +15% in one (MoE, synthetic, 64-token answers).

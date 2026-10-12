@@ -1,8 +1,10 @@
 """Real-vLLM test of the first-order model where recomputation is large (document QA).
 
-Workload: D documents of L tokens, Q questions per document (a distinct 32-token suffix each),
-answers of `out` tokens, all submitted at once in round-robin order over documents, so a
-document's KV has left a small GPU cache before its next question. Three configurations:
+Workload: D documents, Q questions per document, answers of `out` tokens, all submitted at once in
+round-robin order over documents, so a document's KV has left a small GPU cache before its next
+question. Two benchmarks: docqa (16 random-token documents of 4,096 tokens, a distinct 32-token
+suffix per question) and longbench (16 real LongBench documents of 1,500 to 4,000 words from five
+tasks, eight real questions each). Three configurations:
   ideal       GPU KV cache large enough for every document (no recomputation)
   recompute   small GPU KV cache, evicted documents are recomputed
   cpu_offload the same small cache plus vLLM's native CPU offloading tier
@@ -20,8 +22,8 @@ bytes per token over the measured pinned host-to-GPU bandwidth. c_d comes from t
 the model then predicts the tier's gain, R (c_r - c_l) / (c_d + R c_l) with R = X_r / G, which is
 compared with the measured gain T_recompute / T_offload - 1.
 
-  python analysis/reuse_validate.py run --out 4 64 512 --reps 2
-  python analysis/reuse_validate.py report
+  python analysis/reuse_validate.py run --model M --bench docqa --outs 4 64 512 --reps 2
+  python analysis/reuse_validate.py report         all models and benchmarks into summary.csv
 """
 import argparse
 import json
@@ -37,23 +39,51 @@ from a100_validate import ENV, GpuMonitor, _count_scheduled, _generate, _llm, _n
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "results" / "reuse"
 D, L, Q, QLEN = 16, 4096, 8, 32
-SMALL_BLOCKS, BIG_BLOCKS = 2048, 6144          # 32K tokens (8 documents) and 96K tokens (all)
+SMALL_BLOCKS = 2048                             # 32K tokens: about half of the documents
+LONGBENCH = Path.home() / (".cache/huggingface/hub/datasets--zai-org--LongBench/snapshots/"
+                           "5e628be450b7e67fb7ae6e201bd6d8f7056f7672/longbench_extracted/data")
+LB_TASKS = {"qasper": 4, "multifieldqa_en": 3, "2wikimqa": 3, "gov_report": 3, "lcc": 3}
 
 
-def workload(out):
+def short(model):
+    return model.split("/")[-1]
+
+
+def _longbench_docs(model):
+    """16 real documents (1,500 to 4,000 words, the first by _id in each task) and eight questions per
+    document: its own and seven others of the same task. Tokenized with the model's tokenizer."""
+    from transformers import AutoTokenizer
+    tok = AutoTokenizer.from_pretrained(model)
+    docs, questions = [], []
+    for task, n in LB_TASKS.items():
+        rows = sorted((json.loads(x) for x in open(LONGBENCH / f"{task}.jsonl")), key=lambda r: r["_id"])
+        pool = [r for r in rows if 1500 <= r["length"] <= 4000][:n + Q]
+        for i in range(n):
+            ids = tok(pool[i]["context"], add_special_tokens=False)["input_ids"][:6144]
+            qs = [pool[(i + k) % len(pool)]["input"] or "Write a one-page summary." for k in range(Q)]
+            docs.append(ids)
+            questions.append([tok("\n\nQuestion: " + q + "\nAnswer:", add_special_tokens=False)["input_ids"][:QLEN * 2]
+                              for q in qs])
+    return docs, questions
+
+
+def workload(out, bench="docqa", model=None):
+    """Prompts in submission order and the document token lengths."""
     import numpy as np
     rng = np.random.default_rng(1)
-    docs = [rng.integers(1000, 30000, L).tolist() for _ in range(D)]
-    prompts = []
-    for q in range(Q):
-        for d in range(D):
-            prompts.append({"prompt_token_ids": docs[d] + rng.integers(1000, 30000, QLEN).tolist()})
-    return prompts, [out] * len(prompts)
+    if bench == "docqa":
+        docs = [rng.integers(1000, 30000, L).tolist() for _ in range(D)]
+        questions = [[rng.integers(1000, 30000, QLEN).tolist() for _ in range(Q)] for _ in range(D)]
+    else:
+        docs, questions = _longbench_docs(model)
+    prompts = [{"prompt_token_ids": docs[d] + questions[d][q]} for q in range(Q) for d in range(len(docs))]
+    return prompts, [out] * len(prompts), [len(x) for x in docs]
 
 
 def kv_bytes_per_token(model):
     from transformers import AutoConfig
     c = AutoConfig.from_pretrained(model)
+    c = getattr(c, "text_config", c)
     head = getattr(c, "head_dim", None) or c.hidden_size // c.num_attention_heads
     return 2 * c.num_hidden_layers * c.num_key_value_heads * head * 2      # K and V, BF16
 
@@ -75,26 +105,56 @@ def one(a):
     box = _count_scheduled()
     mon = GpuMonitor("0")
     mon.start()
-    extra = dict(kv_offloading_size=a.offload_gb, kv_offloading_backend="native") \
+    prompts, outs, lens = workload(a.out, a.bench, a.model)
+    kvb = kv_bytes_per_token(a.model)
+    offload_gb = a.offload_gb or max(2.0, round(1.3 * sum(lens) * kvb / 2**30 * 2) / 2)
+    extra = dict(kv_offloading_size=offload_gb, kv_offloading_backend="native") \
         if a.config == "cpu_offload" else {}
-    extra["max_model_len"] = 8192          # a request is at most 4,096 + 32 + 512 tokens
-    a.kv_blocks = BIG_BLOCKS if a.config == "ideal" else SMALL_BLOCKS
+    extra["max_model_len"] = 8192          # a request is at most 6,144 + 64 + 512 tokens
+    # ideal: every document plus the running requests fit (the 1.5B docqa runs used 6,144 blocks)
+    a.kv_blocks = (sum(lens) // 16 + 1024) if a.config == "ideal" else SMALL_BLOCKS
     llm = _llm(a, **extra)
-    prompts, outs = workload(a.out)
     box[0] = 0
     wall, gen = _generate(llm, prompts, outs)
     mon.stop = True
-    res = dict(config=a.config, out=a.out, rep=a.rep, wall_s=wall, gen_tokens=gen,
-               scheduled_tokens=box[0], num_blocks=_num_blocks(llm), model=a.model,
+    res = dict(config=a.config, out=a.out, rep=a.rep, wall_s=wall, gen_tokens=gen, bench=a.bench,
+               scheduled_tokens=box[0], num_blocks=_num_blocks(llm), model=a.model, doc_lens=lens,
+               offload_gb=offload_gb if a.config == "cpu_offload" else 0,
                gpu_util=[s["util"] for s in mon.samples])
     if a.config == "ideal" and a.out == a.first_out and a.rep == 0:
-        res.update(h2d_Bps=h2d_bandwidth(), kv_bytes_per_token=kv_bytes_per_token(a.model))
+        res.update(h2d_Bps=h2d_bandwidth(), kv_bytes_per_token=kvb)
     print("RESULT " + json.dumps(res), flush=True)
 
 
+def mixbench(a):
+    """Recompute cost when prefill shares steps with decodes, as in the document runs: 7 requests
+    decode 512 tokens over 4,096-token contexts, alone and with 16 extra 4,096-token prefills
+    (one output token each); the added time per prefill token is c_r,mixed. Fresh random tokens
+    every time, so the prefix cache never hits."""
+    import numpy as np
+    from a100_validate import _generate, _llm
+    a.kv_blocks = 0
+    llm = _llm(a, max_model_len=8192)
+    rng = np.random.default_rng(7)
+
+    def p(n):
+        return [{"prompt_token_ids": rng.integers(1000, 30000, L).tolist()} for _ in range(n)]
+    _generate(llm, p(4), [8] * 4)                                   # warm-up
+    rows = []
+    for rep in range(3):
+        t_dec, _ = _generate(llm, p(7), [512] * 7)
+        t_mix, _ = _generate(llm, p(7) + p(16), [512] * 7 + [1] * 16)
+        rows.append(dict(rep=rep, t_dec=t_dec, t_mix=t_mix, c_r_mixed=(t_mix - t_dec) / (16 * L)))
+    res = dict(model=a.model, rows=rows, c_r_mixed=float(np.median([r["c_r_mixed"] for r in rows])))
+    (OUT / short(a.model)).mkdir(parents=True, exist_ok=True)
+    (OUT / short(a.model) / "mixbench.json").write_text(json.dumps(res, indent=1))
+    print(res, flush=True)
+
+
 def run(a):
-    OUT.mkdir(parents=True, exist_ok=True)
-    path = OUT / "runs.json"
+    d = OUT / short(a.model) / a.bench
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / "runs.json"
     res = json.loads(path.read_text()) if path.exists() else []
     for rep in range(a.reps):
         for out in a.outs:
@@ -102,7 +162,7 @@ def run(a):
                 env = dict(os.environ, CUDA_VISIBLE_DEVICES="0", **ENV)
                 cmd = [sys.executable, __file__, "_one", "--config", cfg, "--out", str(out),
                        "--rep", str(rep), "--first-out", str(a.outs[0]), "--model", a.model,
-                       "--mem-util", str(a.mem_util), "--offload-gb", str(a.offload_gb)]
+                       "--mem-util", str(a.mem_util), "--offload-gb", str(a.offload_gb), "--bench", a.bench]
                 r = subprocess.run(cmd, capture_output=True, text=True, env=env)
                 line = [x for x in r.stdout.splitlines() if x.startswith("RESULT ")]
                 if not line:
@@ -115,53 +175,65 @@ def run(a):
                       f"  computed {x['scheduled_tokens']}", flush=True)
 
 
-def recompute_cost(model, L):
-    """Recompute time per token at document length L from the prefill microbenchmark on this GPU,
-    interpolated in log2(L) between the measured contexts."""
+def recompute_cost(model, lens):
+    """Recompute time per token from the prefill microbenchmark on this GPU, interpolated in log2 of
+    the context between the measured contexts at each document length and weighted by length."""
     import numpy as np
-    path = ROOT / "results" / "a100" / f"micro_{model.split('/')[-1]}_tp1.json"
+    path = ROOT / "results" / "a100" / f"micro_{short(model)}_tp1.json"
     rows = sorted(json.loads(path.read_text())["rows"], key=lambda r: r["ctx"])
     x = np.log2([r["ctx"] for r in rows])
-    return float(np.interp(np.log2(L), x, [r["c_pre"] for r in rows]))
+    c = np.interp(np.log2(lens), x, [r["c_pre"] for r in rows])
+    return float(np.dot(c, lens) / np.sum(lens))
 
 
 def report():
     import pandas as pd
-    runs = json.loads((OUT / "runs.json").read_text())
-    df = pd.DataFrame(runs)
-    meta = next(r for r in runs if "h2d_Bps" in r)
-    c_l = meta["kv_bytes_per_token"] / meta["h2d_Bps"]
-    c_r = recompute_cost(meta["model"], L)
     rows = []
-    for out, g in df.groupby("out"):
-        m = g.groupby("config").agg(wall=("wall_s", "median"), sched=("scheduled_tokens", "median"),
-                                    gen=("gen_tokens", "median"), n=("wall_s", "size"),
-                                    spread=("wall_s", lambda s: (s.max() - s.min()) / s.median()))
-        Tr, To = m.loc["recompute", "wall"], m.loc["cpu_offload", "wall"]
-        X = m.loc["recompute", "sched"] - m.loc["cpu_offload", "sched"]   # recomputed instead of loaded
-        G = m.loc["cpu_offload", "gen"]
-        c_d = (To - X * c_l) / G
-        R = X / G
-        rows.append(dict(out=out, R=R, rho=c_d / c_r, c_d_ms=c_d * 1e3, gain_measured=Tr / To - 1,
-                         gain_predicted=R * (c_r - c_l) / (c_d + R * c_l),
-                         T_recompute=Tr, T_offload=To, T_ideal=m.loc["ideal", "wall"],
-                         offload_extra_vs_ideal=(m.loc["cpu_offload", "sched"] - m.loc["ideal", "sched"]),
-                         max_spread=m.spread.max(), reps=int(m.n.min())))
+    for path in sorted(OUT.glob("*/*/runs.json")):
+        runs = json.loads(path.read_text())
+        df = pd.DataFrame(runs)
+        if not {"ideal", "recompute", "cpu_offload"} <= set(df.config):
+            print(f"skipped, incomplete: {path}")
+            continue
+        meta = next(r for r in runs if "h2d_Bps" in r)
+        lens = meta.get("doc_lens") or [L] * D
+        c_l = meta["kv_bytes_per_token"] / meta["h2d_Bps"]
+        c_r = recompute_cost(meta["model"], lens)
+        mb = OUT / short(meta["model"]) / "mixbench.json"
+        c_m = json.loads(mb.read_text())["c_r_mixed"] if mb.exists() else None
+        for out, g in df.groupby("out"):
+            m = g.groupby("config").agg(wall=("wall_s", "median"), sched=("scheduled_tokens", "median"),
+                                        gen=("gen_tokens", "median"), n=("wall_s", "size"),
+                                        spread=("wall_s", lambda s: (s.max() - s.min()) / s.median()))
+            Tr, To = m.loc["recompute", "wall"], m.loc["cpu_offload", "wall"]
+            X = m.loc["recompute", "sched"] - m.loc["cpu_offload", "sched"]   # recomputed instead of loaded
+            G = m.loc["cpu_offload", "gen"]
+            c_d = (To - X * c_l) / G
+            R = X / G
+            rows.append(dict(model=short(meta["model"]), bench=path.parent.name, out=out, R=R, rho=c_d / c_r,
+                             c_r_us=c_r * 1e6, c_l_us=c_l * 1e6, c_d_ms=c_d * 1e3,
+                             gain_measured=Tr / To - 1, gain_predicted=R * (c_r - c_l) / (c_d + R * c_l),
+                             c_r_mixed_us=c_m * 1e6 if c_m else None,
+                             gain_predicted_mixed=R * (c_m - c_l) / (c_d + R * c_l) if c_m else None,
+                             T_recompute=Tr, T_offload=To, T_ideal=m.loc["ideal", "wall"],
+                             offload_extra_vs_ideal=(m.loc["cpu_offload", "sched"] - m.loc["ideal", "sched"]),
+                             max_spread=m.spread.max(), reps=int(m.n.min())))
     rep = pd.DataFrame(rows)
+    rep["error"] = rep.gain_predicted / rep.gain_measured - 1
+    rep["error_mixed"] = rep.gain_predicted_mixed / rep.gain_measured - 1
     rep.to_csv(OUT / "summary.csv", index=False)
-    print(f"c_r = {c_r * 1e6:.2f} us/token (prefill microbenchmark at {L} tokens), c_l = "
-          f"{c_l * 1e6:.3f} us/token ({meta['kv_bytes_per_token']} B/token at {meta['h2d_Bps'] / 1e9:.1f} GB/s)")
     print(rep.round(3).to_string(index=False))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["run", "report", "_one"])
+    ap.add_argument("mode", choices=["run", "report", "_one", "mixbench"])
     ap.add_argument("--model", default="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
     ap.add_argument("--outs", type=int, nargs="+", default=[4, 64, 512])
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--mem-util", type=float, default=0.6)
-    ap.add_argument("--offload-gb", type=float, default=4.0)
+    ap.add_argument("--offload-gb", type=float, default=0, help="0: 1.3 times the documents' KV")
+    ap.add_argument("--bench", default="docqa", choices=["docqa", "longbench"])
     ap.add_argument("--config", default="ideal")
     ap.add_argument("--out", type=int, default=4)
     ap.add_argument("--rep", type=int, default=0)
@@ -172,6 +244,8 @@ def main():
         one(a)
     elif a.mode == "run":
         run(a)
+    elif a.mode == "mixbench":
+        mixbench(a)
     else:
         report()
 

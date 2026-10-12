@@ -1,0 +1,48 @@
+{
+ "model": "unsloth/Llama-3.2-1B-Instruct",
+ "tp": 1,
+ "gpus": "0",
+ "config": "recompute",
+ "num_blocks": 36486,
+ "offload_gb": 32.0,
+ "gpu_name": "NVIDIA RTX 4500 Ada Generation, 24570 MiB",
+ "rows": [
+  {
+   "ctx": 2048,
+   "batch": 211,
+   "prefill_s": 9.30138111114502,
+   "prefill_decode_s": 17.780136346817017,
+   "c_pre": 2.1524597135906537e-05,
+   "step_s": 0.06624027527868748,
+   "c_dec": 0.0003139349539274288,
+   "rho": 14.584939822345577
+  },
+  {
+   "ctx": 8192,
+   "batch": 55,
+   "prefill_s": 11.847402572631836,
+   "prefill_decode_s": 19.553040027618408,
+   "c_pre": 2.629483880644495e-05,
+   "step_s": 0.060200292617082596,
+   "c_dec": 0.0010945507748560473,
+   "rho": 41.62606901350426
+  },
+  {
+   "ctx": 16384,
+   "batch": 28,
+   "prefill_s": 14.948399543762207,
+   "prefill_decode_s": 21.871490716934204,
+   "c_pre": 3.2584925065748394e-05,
+   "step_s": 0.05408664979040623,
+   "c_dec": 0.0019316660639430796,
+   "rho": 59.280973028032165
+  }
+ ],
+ "gpu_monitor": {
+  "n_samples": 61,
+  "foreign_pids": [
+   2498993
+  ],
+  "contended": true
+ }
+}
