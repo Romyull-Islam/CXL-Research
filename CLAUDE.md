@@ -50,3 +50,7 @@ pip install -r requirements.txt; downloaded data lives in data/ (fetch_data.sh, 
 This project came out of a two-day idea search on 2026-10-08 and 2026-10-09 (16+ ideas checked,
 most rejected by prior work or patents). The full conversation is in chat/ (not in git); read it
 for the reasoning behind every decision. PROJECT.md is the single document for the project: idea, gap, goal, motivation, related work, evidence and plan.
+
+- Novelty search 2026-10-11, citations added 2026-10-14: LRSCwait (DATE 2024, memory-side Mwait on one
+  chip, no timeout), RISC-V Zawrs, IBM US10209925B2 (TTL purge with error interrupt), AMD dual-headed
+  device atomics (HCDS 2024), CXL-ClusterSim. Not cited (unverified): CXLock, a 2026 JSA paper.

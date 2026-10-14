@@ -202,10 +202,15 @@ keeps synchronization state only for actively synchronized locations, and its sy
 of unavailable data fail rather than wait~\cite{ssb}; QOSB (later QOLB) keeps a hardware queue of
 lock waiters among caches~\cite{qolb}; Lustig and Martonosi stall GPU reads
 of empty locations at the memory controller until a CPU write and leave timeouts to future
-work~\cite{lustig}; and Callback reads block in a dedicated directory at the last-level cache until a
-write~\cite{callback}. These are special instructions inside one machine, where no fabric credit rule applies; IBM's
-bound is a processor load deadline, not a Root Port timeout. In CXL, Intel's patents queue atomic
-operations per host in a device~\cite{intelq} and queue keyed lock requests~\cite{intellock}, and
+work~\cite{lustig}; Callback reads block in a dedicated directory at the last-level cache until a
+write~\cite{callback}; LRSCwait's Mwait holds a request at a memory bank of a 256-core cluster until
+the watched location is written~\cite{lrscwait}; RISC-V's WRS.STO stalls a core until a store to its
+reservation set or a short timeout~\cite{zawrs}; and IBM's queue control holds requests to locked
+addresses with a time to live and signals an expired one with a memory-error interrupt rather than
+a reply~\cite{ibmqueue}. These work inside one machine, where no fabric credit rule applies; IBM's
+conditional-load bound is a processor load deadline, not a Root Port timeout. In CXL, Intel's patents queue atomic
+operations per host in a device~\cite{intelq} and queue keyed lock requests~\cite{intellock}, a
+dual-headed device offers test-and-set and compare-and-swap in CXL.io registers~\cite{amdshare}, and
 Micron's device defers requests to cache ways busy with another operation~\cite{micron}; outside
 CXL, Intel forwards MONITOR/MWAIT through network controllers to a remote node~\cite{intelmwait}.
 None holds a plain read until another host writes the data, and none bounds a held read by the
@@ -229,7 +234,8 @@ holds no credit.
 
 \section{Evaluation}
 \label{sec:eval}
-\textbf{Setup.} We add the device to gem5 v25.1~\cite{gem5} as a memory object: SimpleMemory timing
+\textbf{Setup.} We add the device to gem5 v25.1~\cite{gem5} (CXL-ClusterSim couples gem5 with SST for
+pooled memory~\cite{cxlclustersim}) as a memory object: SimpleMemory timing
 (\SI{100}{\nano\second} access, a \SI{64}{\gibi\byte\per\second} port, at least one 64\,B line per
 access), full/empty bits, two address windows, a parked table and the timeout. Each host is its own
 gem5 system with out-of-order x86 cores (gem5's TimingSimpleCPU for barriers, waiters and
