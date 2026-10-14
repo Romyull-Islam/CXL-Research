@@ -20,6 +20,9 @@ findings/04-endurance-wall.md (it ends with the novelty verdict).
   a 10 DWPD 2 TB device covers 40 of 108 second-hit cases (9 of 54 at full prefill duty).
 - Memory: endurance_sweep.py peaks near 1 GB per worker; use WORKERS=5 at most on this host.
 
+- Real-drive check (findings/07, 2026-10-13): on a 1 TB NVMe drive, slowdowns 0.98 / 2.28 / 5.95 for LRU,
+  request-scoped with and without TRIM (FTL WAF 1.00 / 2.08 / 5.17); discard 0.5 to 82 ms idle.
+
 ## Next steps
 
 Paper drafted (paper/endurance_tos.tex). Left: the author's items under "Remaining work for a journal

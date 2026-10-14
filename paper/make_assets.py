@@ -326,6 +326,50 @@ def table_mqsim():
     tex(pd.DataFrame(rows), HERE / "tab_mqsim.tex", fmt=lambda x: f"{x:.3f}")
 
 
+def table_ssd():
+    """Real drive (SanDisk Extreme, WD SN580E inside, over USB): steady-state host write bandwidth
+    (median of each phase's last third) and its slowdown against sequential overwrites, next to
+    the write amplification this FTL measures for the same stream at 7% over-provisioning."""
+    import csv
+    import statistics as st
+    d = R / "ssd"
+
+    def steady(name):
+        rows = list(csv.DictReader(open(d / f"{name}.csv")))
+        return st.median(float(r["interval_MBps"]) for r in rows[len(rows) * 2 // 3:]), \
+            float(rows[-1]["host_bytes"]) / 1e12
+    lt = pd.read_csv(R / "lifetime_waf.csv")
+    lt7 = lt[lt.op == 0.07]
+    sim = {"lru_chat": float(lt7[lt7.policy == "prefix LRU (all)"].waf.iloc[0]),
+           "scoped_trim": float(lt7[(lt7.policy == "request-scoped") & lt7.trim].waf.iloc[0]),
+           "scoped_notrim": float(lt7[(lt7.policy == "request-scoped") & ~lt7.trim].waf.iloc[0])}
+    from ftl import greedy_waf, FTL
+    sim["rand"] = greedy_waf(FTL(40000, 0.07, 64).op_effective, 64)
+    sim["seq"] = 1.0
+    names = {"seq": "sequential overwrite", "lru_chat": "LRU prefix cache, admit all",
+             "scoped_trim": "request-scoped, TRIM", "scoped_notrim": "request-scoped, no TRIM",
+             "rand": "uniform random"}
+    base = steady("seq")[0]
+    rows = []
+    for k, lab in names.items():
+        bw, tb = steady(k)
+        rows.append({"write stream": lab, "written (TB)": f"{tb:.2f}", "steady MB/s": f"{bw:.0f}",
+                     "slowdown": f"{base / bw:.2f}", "simulated WAF": f"{sim[k]:.2f}"})
+    tex(pd.DataFrame(rows), HERE / "tab_ssd.tex")
+    t = (HERE / "tab_ssd.tex").read_text().replace("{lllll}", "{lrrrr}", 1)
+    (HERE / "tab_ssd.tex").write_text(t)
+    disc = list(csv.DictReader(open(d / "discard.csv")))
+    idle = {int(r["bytes"]): [] for r in disc}
+    for r in disc:
+        if r["load"] == "idle":
+            idle[int(r["bytes"])].append(float(r["seconds"]))
+    load = {}
+    for r in csv.DictReader(open(d / "discard_load.csv")):
+        load.setdefault(int(r["bytes"]), []).append(float(r["seconds"]))
+    print("discard idle ms:", {b >> 20: round(st.median(v) * 1e3, 1) for b, v in idle.items()})
+    print("discard writing ms:", {b >> 20: round(st.median(v) * 1e3, 1) for b, v in load.items()})
+
+
 if __name__ == "__main__":
     table_mqsim()
     fig_wear()
@@ -337,4 +381,5 @@ if __name__ == "__main__":
     table_provisioning()
     table_ftl()
     table_traces()
+    table_ssd()
     print("ok")

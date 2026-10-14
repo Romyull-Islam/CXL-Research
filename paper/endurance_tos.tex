@@ -27,14 +27,16 @@ flash translation layer amplifies it, and we found no published study that gives
 hybrid CXL device.
 We measure both with six production traces from two providers, a model of a hybrid device scaled
 consistently to the prefill throughput of an 8-GPU node, and a flash translation layer validated
-against closed forms and MQSim. Three findings follow. First, how KV dies decides how flash wears: an
+against closed forms and MQSim, and we check the key effects on a real NVMe drive. Three findings follow. First, how KV dies decides how flash wears: an
 LRU prefix cache evicts in near write order and keeps write amplification at a median of 1.00, while
 KV freed per request reaches 2.1 with TRIM and 5.2 without it at 7\% over-provisioning, the case on
-CXL.mem, which has no TRIM. Second, the write rate itself is the wall: with second-hit admission TLC
+CXL.mem, which has no TRIM; on a real 1\,TB drive the three cases slow sustained writes 0.98, 2.3 and
+6.0 times. Second, the write rate itself is the wall: with second-hit admission TLC
 lasts five years in only 10 of 108 cases, and 20 exceed even SLC. Third, admission control and lower KV
 precision cut writes 2 to 20 and 2 to 4 times without new hardware, and for request-scoped KV a discard command per finished request,
 sent on the management path, lets the device drop dead KV from its DRAM and trim it, cutting flash
-writes 3.4 to 9.1 times with commands as slow as 100\,ms. We turn the results into provisioning rules across flash type, KV precision, admission
+writes 3.4 to 9.1 times with commands as slow as 100\,ms; a real drive discards 1\,MiB to 4\,GiB in
+0.5 to 82\,ms. We turn the results into provisioning rules across flash type, KV precision, admission
 and prefill duty.
 \end{abstract}
 
@@ -106,7 +108,9 @@ over-provisioning (Section~\ref{sec:waf}).}
 \begin{enumerate}
 \item \emph{How KV dies decides write amplification} (Fig.~\ref{fig:concept}). An LRU prefix cache
 stays near 1 (median 1.00, at most 1.94 at 7\% over-provisioning); KV freed per request reaches 2.1
-with TRIM and 5.2 without it, so CXL.mem's lack of TRIM costs 2.5 times (Section~\ref{sec:waf}).
+with TRIM and 5.2 without it, so CXL.mem's lack of TRIM costs 2.5 times. On a real NVMe drive the
+three cases slow sustained writes 0.98, 2.28 and 5.95 times, and the missing TRIM costs 2.6 times
+(Section~\ref{sec:waf}, Table~\ref{tab:ssd}).
 \item \emph{The write rate itself is the wall.} Without admission control a node at full prefill
 duty writes 280 to 1,290\,TB of BF16 KV to flash per day (Section~\ref{sec:wear}); with second-hit
 admission TLC lasts five years in only 10 of 108 cases, a device rated 10 DWPD covers 40, and 20
@@ -117,15 +121,17 @@ of 36 cases to a cheaper flash class. For a prefix cache, growing device DRAM fr
 changes NAND writes by at most 1.1\% with second-hit admission (Section~\ref{sec:prov}).
 \item \emph{A discard per finished request repairs request-scoped KV.} Sent on the management path,
 it lets the device drop dead KV from its DRAM and trim it, cutting flash writes 3.4 to 9.1 times
-with commands as slow as 100\,ms (Section~\ref{sec:discard}).
+with commands as slow as 100\,ms; on a real drive a discard takes 0.5 to 82\,ms when the drive is
+idle, but small ones wait up to 0.9\,s behind queued writes (Section~\ref{sec:discard}).
 \item \emph{A shared pool gains 1 to 18\% in hits over cache-aware routing} that balances load (Section~\ref{sec:pool}).
 \end{enumerate}
 
 \textbf{Contributions.} (1) A trace-driven model of a hybrid device with consistent per-node scaling
 (Section~\ref{sec:method}); (2) write amplification of KV measured with a flash translation layer
-validated against Desnoyers' closed forms~\cite{desnoyers} and MQSim~\cite{mqsim}
-(Sections~\ref{sec:method} and~\ref{sec:waf}); (3) a per-request discard mechanism and the rate and
-address-space limits it needs (Section~\ref{sec:discard}); and (4) provisioning rules across flash
+validated against Desnoyers' closed forms~\cite{desnoyers} and MQSim~\cite{mqsim}, and checked on a
+real NVMe drive (Sections~\ref{sec:method} and~\ref{sec:waf}); (3) a per-request discard mechanism,
+the rate and address-space limits it needs, and its latency on a real drive
+(Section~\ref{sec:discard}); and (4) provisioning rules across flash
 class, KV precision, admission and prefill duty for six traces and three models
 (Section~\ref{sec:prov}). Sections~\ref{sec:load} and~\ref{sec:pool} add when loading KV from the
 device beats recomputing it and how much a shared pool gains; Section~\ref{sec:related} covers
@@ -333,10 +339,35 @@ traces at 10\% spare space~\cite{trimcxl}; for request-scoped KV the cut is 60\%
 requests die at once. NVMe SSDs can also separate lifetimes with lifecycle-aware placement, which
 ScaleFlux reports more than halved write amplification for KV in preliminary
 tests~\cite{scaleflux}; SPLASH gives each request its own HBF region and erases it as a
-unit~\cite{splash}. Both need control of flash placement that CXL.mem does not give the host. A hybrid CXL
+unit~\cite{splash}, and NVMe Flexible Data Placement lets a host group data by lifetime, which cuts
+device write amplification for flash caches and databases~\cite{fdp_cachelib,fdp_promise}. All three need control of flash placement that CXL.mem does not give the host. A hybrid CXL
 device that stores request-scoped KV therefore needs either 28\%
 over-provisioning, which still leaves write amplification at 2.0, or a way for the host to declare data dead, and a serving engine that frees KV
 in LRU order avoids the problem.
+
+\textbf{On a real drive.} We replay the same streams on a 1\,TB NVMe drive (WD SN580E in a SanDisk
+Extreme enclosure, attached over USB, TRIM passed through as UNMAP), with each logical unit
+mapped to an equal share of the whole drive (7.1\,MB per unit for the request-scoped streams, 19.7\,MB
+for the LRU stream), so the drive's own spare area is the only over-provisioning. Before each stream the
+drive is trimmed and written once sequentially; each KV stream then writes 1.5 times the drive's
+capacity with direct I/O. The drive does not report NAND writes, so we use the standard proxy: once the drive
+is full, garbage collection bounds sustained write bandwidth, and the slowdown against sequential
+overwrites tracks write amplification. Table~\ref{tab:ssd} gives the median bandwidth over the last
+third of each run. The drive orders the streams as the FTL does: the LRU stream writes as fast as
+sequential overwrites (slowdown 0.98), request-scoped KV slows writes 2.28 times with TRIM and 5.95
+times without, against 2.08 and 5.17 simulated, and the missing TRIM costs 2.6 times (2.5 simulated).
+Uniform random overwrites, for reference, slow writes 8.93 times against a greedy closed form of 7.53;
+the real drive runs 10 to 19\% above the simulated values for every stream that needs garbage
+collection.
+
+\begin{table}[t]
+\caption{Real drive (1\,TB WD SN580E over USB): steady host write bandwidth with the drive full,
+slowdown against sequential overwrites, and the write amplification of our FTL for the same stream
+at 7\% over-provisioning.}
+\label{tab:ssd}
+\small
+\input{tab_ssd.tex}
+\end{table}
 
 \section{Telling the device that KV is dead}
 \label{sec:discard}
@@ -350,7 +381,12 @@ point out for TRIM over CXL.io~\cite{trimcxl}. One command per finished request 
 per second on the Bailian thinking trace, and at most 101 per second when the trace is scaled
 to a node ($S \le 67$ in our sweep). The management path (a CXL.io mailbox command) is fast enough
 if a command completes in under 10\,ms or names every request that ended while the previous command
-ran, and CXL.mem needs no change. Lee
+ran, and CXL.mem needs no change. CXL already
+defines a Media Operations mailbox command (opcode 4402h) whose Zero and Sanitize classes act on a
+device address range~\cite{cxl40}, but Linux permits it only on ranges outside committed decoders, to
+avoid corrupting active mappings~\cite{linux_mediaop}: it clears memory taken out of use, not KV that
+dies while the memory stays mapped. The discard evaluated here could be added as another class of
+that command. Lee
 et al.\ propose TRIM as a privileged, asynchronous CXL.io command issued by the operating system or
 by applications through a system call, and leave the initiator layer, granularity and frequency
 open~\cite{trimcxl}; here the initiator is the serving
@@ -394,6 +430,13 @@ is 731\,GB for Llama-3.1-70B and 157\,GB for DeepSeek-V3, so 10 to 25\% of it is
 device DRAM for DeepSeek-V3, within CMM-H's 48\,GB, but 73 to 183\,GB for Llama-3.1-70B. For a
 prefix cache with second-hit admission, 16 to 256\,GB of device DRAM changes NAND writes by at most
 1.1\% (Section~\ref{sec:prov}); DRAM saves flash only when the device learns what is dead.
+
+\textbf{Discard latency on a real drive.} On the drive of Table~\ref{tab:ssd}, a discard of a freshly
+written range takes a median of 0.5\,ms for 1\,MiB, 3.0\,ms for 64\,MiB, 35\,ms for 1\,GiB and
+82\,ms for 4\,GiB with the drive otherwise idle, within the 1 to 100\,ms we assume. Behind a
+stream of 24\,MiB writes, ranges of 16\,MiB to 4\,GiB take 22 to 77\,ms, but a 1\,MiB discard waits
+0.9\,s for the writes queued ahead of it. A device that implements the discard should therefore batch
+the blocks of finished requests into large ranges, or give the command priority over queued writes.
 
 \section{Provisioning}
 \label{sec:prov}
@@ -512,8 +555,13 @@ SSDs~\cite{cylon}.
 forms~\cite{desnoyers,vanhoudt}, and MQSim simulates multi-queue SSDs~\cite{mqsim}. Lee et al.\
 argue for TRIM in CXL memory and model its effect on VM workloads~\cite{trimcxl}. Relaxed retention
 trades data lifetime for endurance~\cite{warm}. Caching objects only on their second
-access~\cite{secondhit}, or admitting them to flash by a learned predictor in
-DRAM~\cite{flashield}, reduces writes in other caches.
+access~\cite{secondhit}, or admitting them to flash by a learned
+predictor~\cite{flashield,baleen}, reduces writes in other caches. NVMe Flexible Data Placement
+separates data by lifetime on block SSDs~\cite{fdp_cachelib,fdp_promise}; CXL.mem has no
+equivalent. For LLM prefix caches, recency dominates reuse, so LRU is hard to beat and one-hit
+prefixes are best demoted early~\cite{fancy_eviction}, which matches the near-write-order eviction
+and second-hit admission we study; compressing KV reduces the bytes a flash device must
+endure~\cite{flash_inference}.
 
 \textbf{KV reuse, pooling and recomputation.} KVCache-in-the-Wild characterizes KV reuse in
 production~\cite{kvwild}; Mooncake and TokenLake pool KV across nodes~\cite{mooncake,tokenlake};
@@ -529,7 +577,10 @@ the cache. The traces cover one to two hours, so daily cycles are not represente
 \textbf{Write amplification.} Our FTL matches closed forms and MQSim but not a specific drive; a
 quarter of the 2\,TB cases and a tenth of the pseudo-SLC cases are too short to reach steady state
 and use write amplification 1, and in 15\% only one KV block fits in an erase block. Devices that
-stripe erase blocks across dies into superblocks or coalesce writes in internal DRAM will differ.
+stripe erase blocks across dies into superblocks or coalesce writes in internal DRAM will differ. The
+real-drive check (Table~\ref{tab:ssd}) covers one consumer drive without DRAM, attached over USB, and
+measures bandwidth rather than NAND writes, so it confirms the order and approximate size of the
+effect, not exact write amplification.
 
 \textbf{Retention.} KV needs minutes to hours of retention, not the months that enterprise ratings
 assume; relaxing internal retention from three years to three days could raise MLC endurance by up
