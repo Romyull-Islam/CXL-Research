@@ -1,0 +1,20 @@
+# Private working notes; remove this line to publish the transcript
+chat/
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+m5out/
+*.log
+.DS_Store
+paper/*.pdf
+!paper/fig_*.pdf
+gem5/
+tla/tools/
+tla/states/
+tla/*_TTrace_*
+gem5-model/runs/
+gem5-model/bench/sync_bench
+gem5-model/sweep_done.txt

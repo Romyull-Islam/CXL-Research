@@ -1,0 +1,85 @@
+size,variant,property,verdict,distinct_states
+"2 consumers, 2 credits, 2-entry table",all rules,TypeOK,holds,275
+"2 consumers, 2 credits, 2-entry table",all rules,NoRootPortTimeout,holds,275
+"2 consumers, 2 credits, 2-entry table",all rules,NoStaleRead,holds,275
+"2 consumers, 2 credits, 2-entry table",all rules,ProducerReadNotBlocked,holds,275
+"2 consumers, 2 credits, 2-entry table",all rules,ProducerWriteNotBlocked,holds,275
+"2 consumers, 2 credits, 2-entry table","all rules, write-back writer",TypeOK,holds,354
+"2 consumers, 2 credits, 2-entry table","all rules, write-back writer",NoRootPortTimeout,holds,354
+"2 consumers, 2 credits, 2-entry table","all rules, write-back writer",NoStaleRead,holds,354
+"2 consumers, 2 credits, 2-entry table","all rules, write-back writer",ProducerReadNotBlocked,holds,354
+"2 consumers, 2 credits, 2-entry table","all rules, write-back writer",ProducerWriteNotBlocked,holds,354
+"2 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",TypeOK,holds,736
+"2 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",NoRootPortTimeout,holds,736
+"2 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",NoStaleRead,holds,736
+"2 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",ProducerReadNotBlocked,holds,736
+"2 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",ProducerWriteNotBlocked,violated (trace of 17 states),324
+"2 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),TypeOK,holds,378
+"2 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),NoRootPortTimeout,holds,378
+"2 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),NoStaleRead,holds,378
+"2 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),ProducerReadNotBlocked,violated (trace of 8 states),213
+"2 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),ProducerWriteNotBlocked,holds,378
+"2 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),TypeOK,holds,279
+"2 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),NoRootPortTimeout,holds,279
+"2 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),NoStaleRead,holds,279
+"2 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),ProducerReadNotBlocked,holds,279
+"2 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),ProducerWriteNotBlocked,holds,279
+"2 consumers, 2 credits, 2-entry table","no R1, no R2",TypeOK,holds,447
+"2 consumers, 2 credits, 2-entry table","no R1, no R2",NoRootPortTimeout,holds,447
+"2 consumers, 2 credits, 2-entry table","no R1, no R2",NoStaleRead,holds,447
+"2 consumers, 2 credits, 2-entry table","no R1, no R2",ProducerReadNotBlocked,violated (trace of 8 states),203
+"2 consumers, 2 credits, 2-entry table","no R1, no R2",ProducerWriteNotBlocked,violated (trace of 11 states),382
+"2 consumers, 2 credits, 2-entry table",no R3 (no device timeout),TypeOK,holds,181
+"2 consumers, 2 credits, 2-entry table",no R3 (no device timeout),NoRootPortTimeout,violated (trace of 9 states),153
+"2 consumers, 2 credits, 2-entry table",no R3 (no device timeout),NoStaleRead,holds,181
+"2 consumers, 2 credits, 2-entry table",no R3 (no device timeout),ProducerReadNotBlocked,holds,181
+"2 consumers, 2 credits, 2-entry table",no R3 (no device timeout),ProducerWriteNotBlocked,holds,181
+"2 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),TypeOK,holds,216
+"2 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),NoRootPortTimeout,holds,216
+"2 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),NoStaleRead,violated (trace of 9 states),102
+"2 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),ProducerReadNotBlocked,holds,216
+"2 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),ProducerWriteNotBlocked,holds,216
+"2 consumers, 2 credits, 2-entry table",all rules,EventuallyDone (liveness),holds,275
+"2 consumers, 2 credits, 2-entry table","all rules, write-back writer",EventuallyDone (liveness),holds,354
+"3 consumers, 2 credits, 2-entry table",all rules,TypeOK,holds,6826
+"3 consumers, 2 credits, 2-entry table",all rules,NoRootPortTimeout,holds,6826
+"3 consumers, 2 credits, 2-entry table",all rules,NoStaleRead,holds,6826
+"3 consumers, 2 credits, 2-entry table",all rules,ProducerReadNotBlocked,holds,6826
+"3 consumers, 2 credits, 2-entry table",all rules,ProducerWriteNotBlocked,holds,6826
+"3 consumers, 2 credits, 2-entry table","all rules, write-back writer",TypeOK,holds,8572
+"3 consumers, 2 credits, 2-entry table","all rules, write-back writer",NoRootPortTimeout,holds,8572
+"3 consumers, 2 credits, 2-entry table","all rules, write-back writer",NoStaleRead,holds,8572
+"3 consumers, 2 credits, 2-entry table","all rules, write-back writer",ProducerReadNotBlocked,holds,8572
+"3 consumers, 2 credits, 2-entry table","all rules, write-back writer",ProducerWriteNotBlocked,holds,8572
+"3 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",TypeOK,holds,13297
+"3 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",NoRootPortTimeout,holds,13297
+"3 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",NoStaleRead,holds,13297
+"3 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",ProducerReadNotBlocked,holds,13297
+"3 consumers, 2 credits, 2-entry table","no R5 (ownership read parked), write-back writer",ProducerWriteNotBlocked,violated (trace of 23 states),2446
+"3 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),TypeOK,holds,3247
+"3 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),NoRootPortTimeout,holds,3247
+"3 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),NoStaleRead,holds,3247
+"3 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),ProducerReadNotBlocked,violated (trace of 8 states),200
+"3 consumers, 2 credits, 2-entry table",no R1 (parked read keeps its credit),ProducerWriteNotBlocked,holds,3247
+"3 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),TypeOK,holds,6931
+"3 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),NoRootPortTimeout,holds,6931
+"3 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),NoStaleRead,holds,6931
+"3 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),ProducerReadNotBlocked,holds,6931
+"3 consumers, 2 credits, 2-entry table",no R2 (write needs a request credit),ProducerWriteNotBlocked,holds,6931
+"3 consumers, 2 credits, 2-entry table","no R1, no R2",TypeOK,holds,5033
+"3 consumers, 2 credits, 2-entry table","no R1, no R2",NoRootPortTimeout,holds,5033
+"3 consumers, 2 credits, 2-entry table","no R1, no R2",NoStaleRead,holds,5033
+"3 consumers, 2 credits, 2-entry table","no R1, no R2",ProducerReadNotBlocked,violated (trace of 8 states),193
+"3 consumers, 2 credits, 2-entry table","no R1, no R2",ProducerWriteNotBlocked,violated (trace of 11 states),640
+"3 consumers, 2 credits, 2-entry table",no R3 (no device timeout),TypeOK,holds,1606
+"3 consumers, 2 credits, 2-entry table",no R3 (no device timeout),NoRootPortTimeout,violated (trace of 21 states),873
+"3 consumers, 2 credits, 2-entry table",no R3 (no device timeout),NoStaleRead,holds,1606
+"3 consumers, 2 credits, 2-entry table",no R3 (no device timeout),ProducerReadNotBlocked,holds,1606
+"3 consumers, 2 credits, 2-entry table",no R3 (no device timeout),ProducerWriteNotBlocked,holds,1606
+"3 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),TypeOK,holds,781
+"3 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),NoRootPortTimeout,holds,781
+"3 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),NoStaleRead,violated (trace of 8 states),203
+"3 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),ProducerReadNotBlocked,holds,781
+"3 consumers, 2 credits, 2-entry table",no R4 (timeout reply looks like data),ProducerWriteNotBlocked,holds,781
+"3 consumers, 2 credits, 2-entry table",all rules,EventuallyDone (liveness),holds,6826
+"3 consumers, 2 credits, 2-entry table","all rules, write-back writer",EventuallyDone (liveness),holds,8572
