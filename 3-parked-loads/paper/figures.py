@@ -16,7 +16,8 @@ G = HERE.parent / "gem5-model" / "results"
 # Okabe-Ito colors; polling dashed, parked solid
 STYLE = {"flush": ("flush poll", "#000000", "s"), "uc": ("uncached poll", "#56B4E9", "v"),
          "lines": ("line poll", "#009E73", "^"), "parked": ("parked flag", "#E69F00", "D"),
-         "wbpark": ("parked line fill", "#D55E00", "o")}
+         "wbpark": ("parked line fill", "#D55E00", "o"),
+         "b1000": ("backoff, 1 us cap", "#0072B2", "<"), "b4000": ("backoff, 4 us cap", "#CC79A7", ">")}
 figfont.use(figfont.TIMES, "Nimbus Roman TT")
 plt.rcParams.update({"font.size": 7, "axes.linewidth": 0.6, "lines.linewidth": 1.0, "lines.markersize": 3,
                      "legend.fontsize": 6, "legend.frameon": False})
@@ -42,14 +43,15 @@ def latency():
 
 
 def contention():
-    d = pd.read_csv(G / "contention.csv")
-    lw = pd.read_csv(G / "longwait.csv")
-    fig, axes = plt.subplots(1, 2, figsize=(3.5, 1.55))
+    d = pd.concat([pd.read_csv(G / "contention.csv"), pd.read_csv(G / "bo_contention.csv")])
+    lw = pd.concat([pd.read_csv(G / "longwait.csv"), pd.read_csv(G / "bo_longwait.csv")])
+    fig, axes = plt.subplots(1, 2, figsize=(3.5, 1.75))
     base = d[d.waiters == 0]
-    for p in ("flush", "uc", "parked", "wbpark"):
+    for p in ("flush", "uc", "b1000", "b4000", "parked", "wbpark"):
         lab, c, mk = STYLE[p]
         x = pd.concat([base, d[d.protocol == p]]).sort_values("waiters")
-        kw = dict(color=c, marker=mk, label=lab, mfc="white" if p in ("flush", "parked") else c, mew=0.8,
+        kw = dict(color=c, marker=mk, label=lab.replace(" us", " \u00b5s"),
+                  mfc="white" if p in ("flush", "parked", "b4000") else c, mew=0.8,
                   ls="-" if p in ("parked", "wbpark") else "--")
         axes[0].plot(x.waiters, x.tenant_GBs, **kw)
         y = lw[lw.protocol == p].sort_values("mean_wait_us")
@@ -70,7 +72,8 @@ def contention():
         ax.set_title(f"({t})", fontsize=7, loc="left", pad=2)
     for ax in axes:
         ax.grid(alpha=0.3, linewidth=0.4)
-    axes[0].legend(loc="lower left", fontsize=7, handlelength=2.2)
+    axes[0].legend(loc="lower left", fontsize=6.5, handlelength=2.2, ncol=1, borderaxespad=0.2,
+                   labelspacing=0.25)
     fig.tight_layout(pad=0.3)
     fig.savefig(HERE / "fig_contention.pdf", bbox_inches="tight", pad_inches=0.02)
 

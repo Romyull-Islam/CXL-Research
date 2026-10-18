@@ -10,6 +10,7 @@
  * Wait protocols for a flag:
  *   flush   flag in DATA: clflushopt + mfence + load, repeated (today's software practice)
  *   uc      flag in SYNC0 with parking off: uncached load, repeated
+ *   bN      like uc, but after each failed poll wait 64 ns, doubling up to N ns (exponential backoff)
  *   parked  flag in SYNC0/SYNC1 with parking on: one load that returns when the flag is written
  *           (or after the device timeout, then re-issued)
  *   wbpark  parking on ordinary cache-line fills: the doorbell line lives in SYNC0 mapped
@@ -70,6 +71,18 @@ static inline void spin_until(uint64_t t)
         ;
 }
 
+/* backoff polling (protocol bN): cap N ns, 0 for every other protocol */
+static inline uint64_t backoff_cap(const char *proto)
+{
+    return proto[0] == 'b' ? (uint64_t)atoi(proto + 1) : 0;
+}
+
+static inline void backoff(uint64_t cap, uint64_t *d)
+{
+    spin_until(now_ns() + *d);
+    *d = *d * 2 > cap ? cap : *d * 2;
+}
+
 static inline void flush_range(volatile uint8_t *p, size_t n)
 {
     for (size_t i = 0; i < n; i += LINE)
@@ -122,9 +135,12 @@ static inline void reset_flag(const char *proto, unsigned f)
 /* wait until flag f equals v; parked loads consume the flag when `consume` */
 static inline uint64_t wait_flag(const char *proto, unsigned f, uint64_t v, int consume)
 {
-    uint64_t polls = 0;
-    while (read_flag(proto, f, consume) != v)
+    uint64_t polls = 0, cap = backoff_cap(proto), d = 64;
+    while (read_flag(proto, f, consume) != v) {
         polls++;
+        if (cap)
+            backoff(cap, &d);
+    }
     if (consume && proto[0] == 'w')
         reset_flag(proto, f);
     return polls;
@@ -362,13 +378,17 @@ int main(int argc, char **argv)
         volatile uint8_t *m = msg + (size_t)id * LINE * 2;
         double sum = 0;
         long got = 0;
-        uint64_t last = 0, reads = 0;
+        uint64_t last = 0, reads = 0, cap = backoff_cap(proto), d = 64;
         while (last < (uint64_t)iters) {
             uint64_t v = read_flag(proto, f, 1);
             reads++;
-            if (v <= last)
+            if (v <= last) {
+                if (cap)
+                    backoff(cap, &d);
                 continue;
+            }
             last = v;
+            d = 64;
             uint64_t t0, t1;
             if (proto[0] == 'w') {          /* the line itself carries the message */
                 t0 = ((volatile uint64_t *)(SYNC0WB + (size_t)f * PAGE))[1];

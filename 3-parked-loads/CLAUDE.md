@@ -54,3 +54,7 @@ for the reasoning behind every decision. PROJECT.md is the single document for t
 - Novelty search 2026-10-11, citations added 2026-10-14: LRSCwait (DATE 2024, memory-side Mwait on one
   chip, no timeout), RISC-V Zawrs, IBM US10209925B2 (TTL purge with error interrupt), AMD dual-headed
   device atomics (HCDS 2024), CXL-ClusterSim. Not cited (unverified): CXLock, a 2026 JSA paper.
+
+- 2026-10-18: backoff-polling baseline (bench protocol bN, results/bo_*.csv) and CACTI 7 cost (cacti/):
+  backoff keeps 96 to 98% of tenant bandwidth but hands off 1.4 to 2.0x slower than a parked flag;
+  parked table 0.065 mm2 / 0.32 ns, full/empty bits 0.12 mm2 / 0.44 ns at 22 nm.

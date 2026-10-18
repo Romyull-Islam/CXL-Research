@@ -23,7 +23,8 @@ cores, caches and coherence domain, share one CXL Type-3 memory device that can 
   loads to them are never issued speculatively).
 - `bench/sync_bench.c` the programs that run on the simulated hosts (static x86-64): one-way
   handoff, RPC, central barrier, streaming tenant, waiter and poster. Wait protocols: `flush`
-  (clflushopt + mfence + load of a write-back flag), `uc` (uncached load, parking off) and
+  (clflushopt + mfence + load of a write-back flag), `uc` (uncached load, parking off), `bN`
+  (uncached polling with exponential backoff from 64 ns to a cap of N ns; experiments bo_*) and
   `parked`. Latencies use clock_gettime, which returns simulated time in SE mode, so a timestamp
   written by one host can be compared on another.
 - `run_gem5.py` all experiments; results in `results/*.csv`.

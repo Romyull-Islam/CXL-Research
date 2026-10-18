@@ -72,6 +72,41 @@ def first_order():
     fig.savefig(HERE / "fig_model.pdf")
 
 
+def design():
+    """Design space of Eq. 1: gain against R for rho = 5, 30, 300 and two load-to-recompute cost
+    ratios, with the simulated preemption runs and the real-vLLM reuse runs at their measured R."""
+    d = pd.read_csv(R / "gate2_saturation.csv")
+    r = d[d.policy == "recompute"].copy()
+    s = d[d.policy == "swap"].set_index(["deploy", "wname", "kernel"]).throughput
+    r["gain"] = (s.loc[list(zip(r.deploy, r.wname, r.kernel))].values / r.throughput.values - 1) * 100
+    q = pd.read_csv(R / "reuse" / "summary.csv")
+    fig, ax = plt.subplots(figsize=(3.5, 1.75))
+    rr = np.logspace(-1, 3.5, 200)
+    for rho, c in ((5, "0.15"), (30, "0.45"), (300, "0.7")):
+        for k, ls in ((1 / 27, "-"), (1 / 5, "--")):
+            g = rr * (1 - k) / (rho + rr * k) * 100
+            ax.plot(rr, g, color=c, ls=ls, lw=0.9)
+        ax.text(2.0, 2.0 * (1 - 1 / 27) / (rho + 2.0 / 27) * 100 * 1.6, rf"$\rho={rho}$", fontsize=6.5,
+                color=c, ha="center", va="bottom")
+    ax.scatter(r.recomputed_per_out, r.gain, s=8, color="#0072B2", zorder=3, label="preempted KV, simulated")
+    ax.scatter(q.R, q.gain_measured * 100, s=14, marker="D", color="#CC79A7", zorder=3,
+               label="reused KV, real vLLM")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(0.1, 3000)
+    ax.set_ylim(0.1, 3000)
+    t = [0.1, 1, 10, 100, 1000]
+    ax.set_xticks(t, ["0.1", "1", "10", "100", "1000"])
+    ax.set_yticks(t, ["0.1", "1", "10", "100", "1000"])
+    ax.minorticks_off()
+    ax.set_xlabel("$R$, tokens recomputed per generated token")
+    ax.set_ylabel("throughput gain (%)")
+    ax.legend(loc="upper left", fontsize=6.5, handletextpad=0.3, borderaxespad=0.3)
+    ax.grid(alpha=0.3, lw=0.4)
+    fig.tight_layout(pad=0.3)
+    fig.savefig(HERE / "fig_design.pdf", bbox_inches="tight", pad_inches=0.02)
+
+
 def teaser():
     """Model-predicted against measured gain: simulated preemption runs (gain = R / rho) and real
     vLLM document questions (Eq. 1 with the measured c_r and c_l)."""
@@ -161,7 +196,7 @@ def reuse_table():
 
 
 if __name__ == "__main__":
-    gains()
+    design()
     teaser()
     capacity()
     reuse_table()

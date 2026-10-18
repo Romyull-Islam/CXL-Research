@@ -4,7 +4,8 @@ Devices: idle uncached round trip 250 ns (expander), 280 ns (multi-headed device
 (switch), set by the one-way link delay (round trip = 124.5 ns + 2 x delay in this config).
 Protocols: flush (clflushopt + mfence + load of a write-back flag), uc (uncached load, parking
 off), parked (uncached flag load parked), wbpark (cacheable line fill parked, the line carries the
-message), and for oneway/rpc lines (poll the payload lines themselves, no flag). Run: python run_gem5.py [experiment ...]   (default: all)
+message), and for oneway/rpc lines (poll the payload lines themselves, no flag); bN is uncached
+polling with exponential backoff capped at N ns (experiments bo_*, written to results/bo_*.csv). Run: python run_gem5.py [experiment ...]   (default: all)
 """
 import csv
 import itertools
@@ -104,7 +105,14 @@ def table(a):
     return contention(a, tag="tb")
 
 
+BACKOFF = ["b1000", "b4000"]   # uncached polling with exponential backoff, cap 1 and 4 us
+
 EXPERIMENTS = {
+    "bo_oneway": (oneway, list(itertools.product(DEVICES, BACKOFF, (64, 256, 1024, 4096)))),
+    "bo_rpc": (rpc, list(itertools.product(DEVICES, BACKOFF, (0, 2000, 10000)))),
+    "bo_barrier": (barrier, list(itertools.product(("mhd", "switch"), BACKOFF, (4, 8, 16)))),
+    "bo_contention": (contention, list(itertools.product(BACKOFF, (16, 64, 128, 256)))),
+    "bo_longwait": (longwait, list(itertools.product(BACKOFF, (64,), (20000, 100000, 500000)))),
     "oneway": (oneway, list(itertools.product(DEVICES, PROTOS + ["lines"], (64, 256, 1024, 4096)))),
     "rpc": (rpc, list(itertools.product(DEVICES, PROTOS + ["lines"], (0, 2000, 10000)))),
     "barrier": (barrier, list(itertools.product(("mhd", "switch"), PROTOS, (4, 8, 16)))),

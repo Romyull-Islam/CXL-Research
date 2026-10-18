@@ -77,11 +77,9 @@ sharing flash blocks raise write amplification~\cite{scaleflux}. Work on on-pack
 flash (HBF) answers parts of the question: on the Qwen-Bailian traces a flash KV tier writes 1.14 to
 4.90 times more than it reads, 48 to 140\,TB per day per eight-GPU system, against a 21.7\,TB/day
 TLC budget at write amplification 1~\cite{hbfsucks}; mixed KV lifetimes in one erase block drive
-garbage-collection write amplification to about 30 on average for one model~\cite{hbflex};
-lifetime-aware placement~\cite{hbflex,lachesis}, cache admission for recommendation
-KV~\cite{huawei_hbf} and request admission~\cite{berkeley_hbf} extend HBF life; and whether HBF
-endurance suffices depends on the KV read-to-write ratio~\cite{son_hbf,kyung_hbf}. TRIM has been
-argued for CXL memory in general~\cite{trimcxl}. None of this models a DRAM-over-NAND CXL device,
+garbage-collection write amplification to about 30 on average for one model~\cite{hbflex}; and
+placement, admission and endurance studies extend or assess HBF life (Section~\ref{sec:related}).
+TRIM has been argued for CXL memory in general~\cite{trimcxl}. None of this models a DRAM-over-NAND CXL device,
 contrasts the ways KV dies, sweeps flash type and KV precision, or divides the device among the
 interleaved streams of a node.
 
@@ -131,11 +129,10 @@ idle, but a 1\,MiB discard waits a median of 0.9\,s (up to 1.0\,s) behind queued
 \textbf{Contributions.} (1) A trace-driven model of a hybrid device with consistent per-node scaling
 (Section~\ref{sec:method}); (2) write amplification of KV measured with a flash translation layer
 validated against Desnoyers' closed forms~\cite{desnoyers} and MQSim~\cite{mqsim}, and checked on a
-real NVMe drive (Sections~\ref{sec:method} and~\ref{sec:waf}); (3) a per-request discard mechanism,
-the rate and address-space limits it needs, and its latency on a real drive
-(Section~\ref{sec:discard}); and (4) provisioning rules across flash
+real NVMe drive (Sections~\ref{sec:method} and~\ref{sec:waf}); (3) provisioning rules across flash
 class, KV precision, admission and prefill duty for six traces and three models
-(Section~\ref{sec:prov}). Sections~\ref{sec:load} and~\ref{sec:pool} add when loading KV from the
+(Section~\ref{sec:prov}); and (4) a per-request discard mechanism, the rate and address-space limits
+it needs, and its latency on a real drive (Section~\ref{sec:discard}). Sections~\ref{sec:load} and~\ref{sec:pool} add when loading KV from the
 device beats recomputing it and how much a shared pool gains; Section~\ref{sec:related} covers
 related work and Section~\ref{sec:disc} the limitations.
 
@@ -390,6 +387,55 @@ interquartile range of 10-second samples over the last third of the run.}
 reaches 2.1 with TRIM and 5.2 without it, and a real drive slows sustained writes 2.28 and 5.95 times
 for those two cases.
 
+\section{Traffic, precision and admission decide the flash class}
+\label{sec:prov}
+Figure~\ref{fig:prov} gives the cheapest flash class that lasts five years with second-hit
+admission. Four rules follow.
+\begin{enumerate}
+\item \emph{Admission control is mandatory.} Admitting everything never fits TLC, fits pseudo-SLC in
+only 4 of 54 cases, all DeepSeek-V3 with INT4 KV at partial prefill duty, and at full prefill duty fits
+nothing in 48 of 54 cases.
+\item \emph{Workload decides the flash class.} TLC fits API-like traffic at partial prefill duty
+(6 of 9 cases), but reasoning traffic only in 1 of 9 and interactive traffic (chat, coding,
+conversation and agent) only in 2 of 36, all DeepSeek-V3 with INT4 KV. Interactive
+traffic needs pseudo-SLC or SLC, and 16 of its 36 cases at full prefill duty (and 2 of 36 at partial
+duty) exceed even 100\,TB/day.
+\item \emph{KV precision is worth one flash class.} FP8 halves and INT4 quarters the NAND
+writes (0.49 and 0.24 times BF16 on average); INT4 instead of BF16 moves 33 of 36 trace, model and
+duty cases down exactly one class, one case two classes and two cases none.
+\item \emph{Attention architecture changes the write rate.} With second-hit admission, MLA
+(DeepSeek-V3) sends 2.3 to 2.9 times less KV to NAND than GQA Llama-3.1-70B per node, and the 7B GQA
+model sends the most in all 36 cases.
+\end{enumerate}
+Drives announced for KV caching at 7 to more than 10 DWPD~\cite{scaleflux} would cover, at 10 DWPD
+(20\,TB/day on a 2\,TB device), 31 of the 54 cases at partial prefill duty and 9 of 54 at full duty with
+second-hit admission; at 7 DWPD, 21 and 4. Using the 1.7 times higher sequential rating for TLC moves 9 of the 108 cases from pseudo-SLC to
+TLC; interactive traffic then fits TLC in 6 of 36 cases at partial duty, still all DeepSeek-V3, now
+with FP8 or INT4 KV. Pseudo-SLC's smaller capacity (667\,GB) lowers the hit share by a median of 1.4 points
+and leaves the median write rate unchanged. A second wall is bandwidth: 7\% of the
+cases (22 of 324) need more than the about 5\,GB/s that the 48\,GB CMM-H sustains when its working
+set does not fit in its DRAM cache~\cite{cmmh_hs}, all of them with admit-all or Qwen2.5-7B.
+
+\textbf{Device DRAM size.} Growing the device's DRAM cache from 16 to 256\,GB (Bailian API, chat
+and thinking traces, Llama-3.1-70B and DeepSeek-V3, BF16, full duty, second-hit and oracle
+admission) changes the per-node NAND writes by $-0.4$ to $+5.7\%$ with second-hit admission and by
+$-32$ to $0\%$ with oracle admission, while the share of hits served from DRAM rises from 0.24--0.49 to
+0.35--0.90. A larger DRAM cache serves more hits from DRAM but does not extend lifetime: with $S$ interleaved streams, even 256\,GB
+of DRAM evicts a block before its next reference, so second-hit admission writes it to NAND anyway.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_prov.pdf}
+\Description{A colored grid with eighteen rows, one per trace and model, and six columns, one per prefill duty and KV precision; each cell names the cheapest flash class that lasts five years.}
+\caption{Cheapest flash class that lasts five years with second-hit admission, by trace, model,
+prefill duty and KV precision. TLC-1 and TLC-3: TLC at 1 and 3 DWPD; pSLC: pseudo-SLC; none: above
+100\,TB/day.}
+\label{fig:prov}
+\end{figure}
+
+\textbf{Takeaway.} With second-hit admission, TLC lasts five years in 10 of 108 cases; INT4 KV moves 34
+of 36 trace, model and duty cases to a cheaper flash class.
+
 \section{Telling the device that KV is dead}
 \label{sec:discard}
 Request-scoped KV wastes flash twice on CXL.mem: dead blocks that device DRAM evicts are written to
@@ -463,55 +509,6 @@ the blocks of finished requests into large ranges, or give the command priority 
 
 \textbf{Takeaway.} A discard per finished request cuts flash programs of request-scoped KV 3.4 to 9.1
 times at up to 100\,ms per command, and a real drive completes one in 0.5 to 81\,ms when idle.
-
-\section{Traffic, precision and admission decide the flash class}
-\label{sec:prov}
-Figure~\ref{fig:prov} gives the cheapest flash class that lasts five years with second-hit
-admission. Four rules follow.
-\begin{enumerate}
-\item \emph{Admission control is mandatory.} Admitting everything never fits TLC, fits pseudo-SLC in
-only 4 of 54 cases, all DeepSeek-V3 with INT4 KV at partial prefill duty, and at full prefill duty fits
-nothing in 48 of 54 cases.
-\item \emph{Workload decides the flash class.} TLC fits API-like traffic at partial prefill duty
-(6 of 9 cases), but reasoning traffic only in 1 of 9 and interactive traffic (chat, coding,
-conversation and agent) only in 2 of 36, all DeepSeek-V3 with INT4 KV. Interactive
-traffic needs pseudo-SLC or SLC, and 16 of its 36 cases at full prefill duty (and 2 of 36 at partial
-duty) exceed even 100\,TB/day.
-\item \emph{KV precision is worth one flash class.} FP8 halves and INT4 quarters the NAND
-writes (0.49 and 0.24 times BF16 on average); INT4 instead of BF16 moves 33 of 36 trace, model and
-duty cases down exactly one class, one case two classes and two cases none.
-\item \emph{Attention architecture changes the write rate.} With second-hit admission, MLA
-(DeepSeek-V3) sends 2.3 to 2.9 times less KV to NAND than GQA Llama-3.1-70B per node, and the 7B GQA
-model sends the most in all 36 cases.
-\end{enumerate}
-Drives announced for KV caching at 7 to more than 10 DWPD~\cite{scaleflux} would cover, at 10 DWPD
-(20\,TB/day on a 2\,TB device), 31 of the 54 cases at partial prefill duty and 9 of 54 at full duty with
-second-hit admission; at 7 DWPD, 21 and 4. Using the 1.7 times higher sequential rating for TLC moves 9 of the 108 cases from pseudo-SLC to
-TLC; interactive traffic then fits TLC in 6 of 36 cases at partial duty, still all DeepSeek-V3, now
-with FP8 or INT4 KV. Pseudo-SLC's smaller capacity (667\,GB) lowers the hit share by a median of 1.4 points
-and leaves the median write rate unchanged. A second wall is bandwidth: 7\% of the
-cases (22 of 324) need more than the about 5\,GB/s that the 48\,GB CMM-H sustains when its working
-set does not fit in its DRAM cache~\cite{cmmh_hs}, all of them with admit-all or Qwen2.5-7B.
-
-\textbf{Device DRAM size.} Growing the device's DRAM cache from 16 to 256\,GB (Bailian API, chat
-and thinking traces, Llama-3.1-70B and DeepSeek-V3, BF16, full duty, second-hit and oracle
-admission) changes the per-node NAND writes by $-0.4$ to $+5.7\%$ with second-hit admission and by
-$-32$ to $0\%$ with oracle admission, while the share of hits served from DRAM rises from 0.24--0.49 to
-0.35--0.90. A larger DRAM cache serves more hits from DRAM but does not extend lifetime: with $S$ interleaved streams, even 256\,GB
-of DRAM evicts a block before its next reference, so second-hit admission writes it to NAND anyway.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{fig_prov.pdf}
-\Description{A colored grid with eighteen rows, one per trace and model, and six columns, one per prefill duty and KV precision; each cell names the cheapest flash class that lasts five years.}
-\caption{Cheapest flash class that lasts five years with second-hit admission, by trace, model,
-prefill duty and KV precision. TLC-1 and TLC-3: TLC at 1 and 3 DWPD; pSLC: pseudo-SLC; none: above
-100\,TB/day.}
-\label{fig:prov}
-\end{figure}
-
-\textbf{Takeaway.} With second-hit admission, TLC lasts five years in 10 of 108 cases; INT4 KV moves 34
-of 36 trace, model and duty cases to a cheaper flash class.
 
 \section{Loading beats recomputing above a bandwidth threshold}
 \label{sec:load}

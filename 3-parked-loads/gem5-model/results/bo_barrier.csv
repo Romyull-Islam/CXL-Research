@@ -1,0 +1,13 @@
+device,protocol,hosts,round_ns
+mhd,b1000,4,2806.5
+mhd,b1000,8,5117.3
+mhd,b1000,16,9036.5
+mhd,b4000,4,2806.5
+mhd,b4000,8,5271.3
+mhd,b4000,16,11686.3
+switch,b1000,4,4348.6
+switch,b1000,8,7512.9
+switch,b1000,16,14051.9
+switch,b4000,4,4348.6
+switch,b4000,8,8300.9
+switch,b4000,16,14851.1
