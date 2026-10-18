@@ -35,8 +35,11 @@ def gains():
                 g[k] = (r["swap"] / r["recompute"] - 1) * 100
             y.append(g["fa3"])
             e.append(g["fa2"] - g["fa3"])
-        ax.bar(x + (j - 1.5) * 0.2, y, 0.2, color=cols[j], label=lab, yerr=[np.zeros(len(e)), e],
-               error_kw=dict(lw=0.5, capsize=1))
+        xs = x + (j - 1.5) * 0.2
+        ax.bar(xs, y, 0.2, color=cols[j], label=lab)
+        top = np.array(y) + np.array(e)
+        ax.vlines(xs, y, top, color="k", lw=0.5)                 # FlashAttention-2 calibration
+        ax.hlines(top, xs - 0.04, xs + 0.04, color="k", lw=0.5)
     ax.set_xticks(x, LAB, fontsize=6)
     ax.set_ylabel("throughput gain (%)")
     ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.2))
@@ -78,7 +81,7 @@ def teaser():
     r["gain"] = (s.loc[list(zip(r.deploy, r.wname, r.kernel))].values / r.throughput.values - 1) * 100
     r["model"] = r.recomputed_per_out / r.rho * 100
     q = pd.read_csv(R / "reuse" / "summary.csv")
-    fig, ax = plt.subplots(figsize=(3.5, 1.9))
+    fig, ax = plt.subplots(figsize=(3.5, 1.75))
     lim = (1, 600)
     ax.plot(lim, lim, color="k", lw=0.5)
     ax.fill_between(lim, [v / 1.2 for v in lim], [v * 1.2 for v in lim], color="0.85", lw=0)
