@@ -43,13 +43,15 @@ def fig_wear():
     for ax, (m, mlab) in zip(axes, MODELS.items()):
         for name, b in BUDGETS:
             ax.axvline(b, color="0.55", lw=0.6, ls=":")
-            ax.text(b, len(TRACES) + 0.75, name.replace(" DWPD", ""), rotation=90, fontsize=6,
+            ax.text(b, len(TRACES) + 0.75, name.replace(" DWPD", ""), rotation=90, fontsize=6.5,
                     ha="right", va="top", color="0.35")
         for i, t in enumerate(TRACES):
             v = [d[(d.model == m) & (d.trace == t) & (d.admit == a)].TBday_op28.iloc[0] for a in ADMIT_C]
             ax.plot([min(v), max(v)], [i, i], color="0.75", lw=1.0, zorder=1)
             for (a, c), val in zip(ADMIT_C.items(), v):
-                ax.scatter(val, i, s=14, color=c, zorder=3, label=f"admit {a}" if i == 0 else None)
+                hollow = a == "oracle"
+                ax.scatter(val, i, s=16 if hollow else 14, facecolors="white" if hollow else c, edgecolors=c,
+                           linewidths=0.9, zorder=4 if hollow else 3, label=f"admit {a}" if i == 0 else None)
         ax.set_xscale("log")
         ax.set_xlim(1, 2000)
         ax.set_xticks([1, 10, 100, 1000], ["1", "10", "100", "1000"])
@@ -105,11 +107,10 @@ def fig_concept():
 
 def fig_prov():
     """Cheapest flash class that lasts five years with second-hit admission."""
-    from matplotlib.colors import ListedColormap
     t = pd.read_csv(R / "provisioning.csv")
     t = t[t.admit == "2nd hit"]
     classes = ["TLC-1", "TLC-3", "pSLC", "SLC", "none"]
-    cmap = ListedColormap(["#1a9850", "#91cf60", "#fee08b", "#fc8d59", "#d73027"])
+    face = ["#FDE725", "#7AD151", "#22A884", "#2A788E", "#414487"]   # viridis steps, light = cheapest
     cols = [(1.0, "BF16"), (1.0, "FP8"), (1.0, "INT4"), (0.3, "BF16"), (0.3, "FP8"), (0.3, "INT4")]
     rows, labels = [], []
     for tr, lab in TRACES.items():
@@ -118,12 +119,15 @@ def fig_prov():
                                           (t.precision == pr)].cheapest.iloc[0]) for du, pr in cols])
             labels.append(f"{lab}, {m}")
     M = np.array(rows)
-    fig, ax = plt.subplots(figsize=(5.5, 3.6))
-    ax.imshow(M, cmap=cmap, vmin=-0.5, vmax=4.5, aspect="auto")
+    from matplotlib.patches import Rectangle
+    fig, ax = plt.subplots(figsize=(5.5, 3.2))
     for i in range(M.shape[0]):
         for j in range(M.shape[1]):
+            ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, facecolor=face[M[i, j]], edgecolor="none"))
             ax.text(j, i, classes[M[i, j]], ha="center", va="center", fontsize=6.5,
-                    color="white" if M[i, j] in (0, 4) else "black")
+                    color="white" if M[i, j] >= 3 else "black")
+    ax.set_xlim(-0.5, M.shape[1] - 0.5)
+    ax.set_ylim(M.shape[0] - 0.5, -0.5)
     ax.set_xticks(range(6), [f"{int(du * 100)}% duty\n{pr}" for du, pr in cols], fontsize=7)
     ax.set_yticks(range(len(labels)), labels, fontsize=6.5)
     for i in range(3, len(labels), 3):
@@ -157,11 +161,12 @@ def fig_waf():
         rows.append((name, r.op, r.waf))
     names = list(dict.fromkeys(n for n, _, _ in rows))
     xx = np.arange(len(names))
-    for j, (op, c) in enumerate(((0.07, "0.3"), (0.28, "0.7"))):
+    for j, (op, c) in enumerate(((0.07, "0.3"), (0.28, "white"))):
         y = [next(w for n, o, w in rows if n == nm and abs(o - op) < 1e-9) for nm in names]
-        axes[1].bar(xx + (j - 0.5) * 0.38, y, 0.38, color=c, label=f"{int(op * 100)}% OP")
+        axes[1].bar(xx + (j - 0.5) * 0.38, y, 0.38, color=c, edgecolor="0.3", lw=0.6,
+                    hatch="////" if c == "white" else None, label=f"{int(op * 100)}% OP")
         for xv, yv in zip(xx + (j - 0.5) * 0.38, y):
-            axes[1].text(xv, yv + 0.06, f"{yv:.2f}", ha="center", va="bottom", fontsize=5.5)
+            axes[1].text(xv, yv + 0.06, f"{yv:.2f}", ha="center", va="bottom", fontsize=6)
     axes[1].set_xticks(xx, names, fontsize=6.5)
     axes[1].set_ylabel("write amplification")
     axes[1].set_ylim(0, 5.8)
@@ -174,7 +179,7 @@ def fig_waf():
 def fig_pool():
     d = pd.read_csv(R / "pool_sharing.csv")
     fig, axes = plt.subplots(1, 3, figsize=(5.5, 2.0))
-    sty = {"pooled": ("#C44E52", "o"), "prefix-aware": ("#4C72B0", "^"), "random": ("#999999", "s")}
+    sty = {"pooled": ("0.1", "o"), "prefix-aware": ("0.45", "^"), "random": ("0.7", "s")}
     for ax, t in zip(axes[:2], ("mooncake_conversation", "bailian_A_chat")):
         x = d[(d.trace == t) & (d.hosts == 8)]
         for s, (c, mk) in sty.items():
@@ -221,10 +226,11 @@ def fig_load():
     d = pd.read_csv(R / "load_vs_recompute.csv")
     d = d[d.gpu == "8x H100"]
     fig, ax = plt.subplots(figsize=(4.4, 2.3))
-    cols = {"DeepSeek-V3": "#C44E52", "Llama-3.1-70B": "#4C72B0", "Qwen2.5-7B": "#55A868"}
+    cols = {"DeepSeek-V3": "#8172B3", "Llama-3.1-70B": "#937860", "Qwen2.5-7B": "#2A9D8F"}
+    mks = {"DeepSeek-V3": "o", "Llama-3.1-70B": "s", "Qwen2.5-7B": "^"}
     ls = {"BF16": "-", "FP8": "--", "INT4": ":"}
     for (m, p), g in d.groupby(["model", "precision"]):
-        ax.plot(g.context, g.breakeven_GBs, color=cols[m], ls=ls[p], marker="o")
+        ax.plot(g.context, g.breakeven_GBs, color=cols[m], ls=ls[p], marker=mks[m])
     for name, b in (("CMM-H NAND 5", 5.0), ("CMM-H DRAM 27", 27.0)):
         ax.axhline(b, color="k", lw=0.5, ls=":")
         above = b < 10
@@ -238,7 +244,7 @@ def fig_load():
     ax.minorticks_off()
     ax.set_xlabel("context tokens")
     ax.set_ylabel("break-even bandwidth (GB/s)")
-    h = [Line2D([], [], color=c, marker="o", label=MODELS[m]) for m, c in cols.items()]
+    h = [Line2D([], [], color=c, marker=mks[m], label=MODELS[m]) for m, c in cols.items()]
     h += [Line2D([], [], color="0.3", ls=v, label=f"{k} KV") for k, v in ls.items()]
     ax.legend(handles=h, fontsize=6, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     ax.grid(alpha=0.3, lw=0.4)
@@ -334,10 +340,11 @@ def table_ssd():
     import statistics as st
     d = R / "ssd"
 
-    def steady(name):
+    def steady(name, iqr=False):
         rows = list(csv.DictReader(open(d / f"{name}.csv")))
-        return st.median(float(r["interval_MBps"]) for r in rows[len(rows) * 2 // 3:]), \
-            float(rows[-1]["host_bytes"]) / 1e12
+        v = [float(r["interval_MBps"]) for r in rows[len(rows) * 2 // 3:]]
+        q = st.quantiles(v, n=4)
+        return (st.median(v), float(rows[-1]["host_bytes"]) / 1e12) + ((q[0], q[2]) if iqr else ())
     lt = pd.read_csv(R / "lifetime_waf.csv")
     lt7 = lt[lt.op == 0.07]
     sim = {"lru_chat": float(lt7[lt7.policy == "prefix LRU (all)"].waf.iloc[0]),
@@ -352,11 +359,12 @@ def table_ssd():
     base = steady("seq")[0]
     rows = []
     for k, lab in names.items():
-        bw, tb = steady(k)
+        bw, tb, q1, q3 = steady(k, iqr=True)
         rows.append({"write stream": lab, "written (TB)": f"{tb:.2f}", "steady MB/s": f"{bw:.0f}",
+                     "IQR MB/s": f"{q1:.0f}--{q3:.0f}",
                      "slowdown": f"{base / bw:.2f}", "simulated WAF": f"{sim[k]:.2f}"})
     tex(pd.DataFrame(rows), HERE / "tab_ssd.tex")
-    t = (HERE / "tab_ssd.tex").read_text().replace("{lllll}", "{lrrrr}", 1)
+    t = (HERE / "tab_ssd.tex").read_text().replace("{llllll}", "{lrrrrr}", 1)
     (HERE / "tab_ssd.tex").write_text(t)
     disc = list(csv.DictReader(open(d / "discard.csv")))
     idle = {int(r["bytes"]): [] for r in disc}

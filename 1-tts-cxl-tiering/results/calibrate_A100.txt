@@ -1,0 +1,32 @@
+fitted on meta-llama/Meta-Llama-3-70B
+  GEMM: 0.709 of peak FLOP/s, 0.631 of HBM bandwidth
+  elementwise per layer: 12.4 us + n x (105.9 + 228.3/tp) ns
+  decode attention: 0.756 of HBM bandwidth + 12.3 us per layer
+  prefill attention: asymptote 0.468 of peak, half rate at 3.70e+09 FLOPs per layer-rank
+  all-reduce tp2: 44.0 us + bytes / 171 GB/s
+  all-reduce tp4: 19.0 us + bytes / 126 GB/s
+  all-reduce tp8: 31.0 us + bytes / 109 GB/s
+
+per-operator error (meta-llama/Meta-Llama-3-70B is the fit; the rest are held out)
+Qwen/Qwen-72B                    GEMM median   4.5%  p90  18.7%  n=1044 | elem median   4.7%  p90  24.1%  n=1044
+                                 decode attn median  26.5%  p90  64.6%  n=28636 | prefill attn (chunk>=512) median  53.5%  p90  65.0%  n=12372
+codellama/CodeLlama-34b-Instruct-hf GEMM median   4.5%  p90  19.5%  n=1044 | elem median  12.8%  p90  30.0%  n=1044
+                                 decode attn median   7.1%  p90  15.9%  n=28636 | prefill attn (chunk>=512) median  45.6%  p90  59.7%  n=12372
+internlm/internlm-20b            GEMM median   4.7%  p90  22.0%  n=1044 | elem median  63.8%  p90  88.5%  n=1044
+                                 decode attn median  14.6%  p90  42.7%  n=28636 | prefill attn (chunk>=512) median  54.4%  p90  65.8%  n=12372
+meta-llama/Llama-2-70b-hf        GEMM median   5.0%  p90  19.7%  n=1044 | elem median   4.7%  p90  24.3%  n=1044
+                                 decode attn median   7.7%  p90  17.1%  n=28636 | prefill attn (chunk>=512) median  45.5%  p90  59.7%  n=12372
+meta-llama/Llama-2-7b-hf         GEMM median   4.9%  p90  30.9%  n=1044 | elem median 103.5%  p90 126.1%  n=1044
+                                 decode attn median  10.7%  p90  22.0%  n=28636 | prefill attn (chunk>=512) median  53.5%  p90  65.9%  n=12372
+meta-llama/Meta-Llama-3-70B      GEMM median   4.4%  p90  14.6%  n=1824 | elem median   4.7%  p90  16.2%  n=1824
+                                 decode attn median   6.3%  p90  13.5%  n=74988 | prefill attn (chunk>=512) median  12.9%  p90  26.0%  n=3892
+meta-llama/Meta-Llama-3-8B       GEMM median   2.7%  p90  20.7%  n=1824 | elem median  90.0%  p90 117.2%  n=1824
+                                 decode attn median   6.4%  p90  12.7%  n=30481 | prefill attn (chunk>=512) median  12.3%  p90  29.6%  n=1946
+microsoft/phi-2                  GEMM median   6.2%  p90  24.2%  n=261 | elem median 312.4%  p90 346.0%  n=261
+                                 decode attn median  22.7%  p90  30.7%  n=28636 | prefill attn (chunk>=512) median  60.1%  p90  71.6%  n=12372
+
+whole-layer error, meta-llama/Meta-Llama-3-70B (fit) and meta-llama/Meta-Llama-3-8B (held out), all profiled tp
+  meta-llama/Meta-Llama-3-70B          decode   median   5.5%  p90  15.5%  n=3688  bias -3.6%
+  meta-llama/Meta-Llama-3-70B          prefill  median   4.3%  p90   8.8%  n=3892  bias -1.1%
+  meta-llama/Meta-Llama-3-8B           decode   median   4.4%  p90  10.7%  n=989  bias -0.4%
+  meta-llama/Meta-Llama-3-8B           prefill  median   6.7%  p90  11.6%  n=1946  bias +5.4%

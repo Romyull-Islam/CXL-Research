@@ -9,7 +9,7 @@ decision, not as evidence for a paper.
 | Parameter | Value | Source |
 |---|---|---|
 | Idle load round trip | 250, 400, 600 ns | ASIC and FPGA expanders measured at 214 to 394 ns (Melody, ASPLOS'25; Demystifying CXL Memory, MICRO'23); Samsung CMM-B pooled box 596 ns |
-| Per-poll overhead (clflushopt + fence) | 50 ns | assumption |
+| Per-poll overhead (uncached load) | 50 ns | assumption; a flush plus fence costs about 1.4 us (cMPI) |
 | Per-host link bandwidth | 32 GB/s | x8 Gen5 class expanders (Micron CZ120 up to 36 GB/s) |
 | Outstanding line requests per consumer | 48 | assumption, roughly a modern core's L2 miss queue |
 | Device bandwidth | 60 GB/s | Samsung CMM-B |

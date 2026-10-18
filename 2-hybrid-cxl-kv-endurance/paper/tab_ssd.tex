@@ -1,11 +1,11 @@
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-write stream & written (TB) & steady MB/s & slowdown & simulated WAF \\
+write stream & written (TB) & steady MB/s & IQR MB/s & slowdown & simulated WAF \\
 \midrule
-sequential overwrite & 1.00 & 393 & 1.00 & 1.00 \\
-LRU prefix cache, admit all & 1.50 & 400 & 0.98 & 1.00 \\
-request-scoped, TRIM & 1.50 & 172 & 2.28 & 2.08 \\
-request-scoped, no TRIM & 1.50 & 66 & 5.95 & 5.17 \\
-uniform random & 1.03 & 44 & 8.93 & 7.53 \\
+sequential overwrite & 1.00 & 393 & 392--393 & 1.00 & 1.00 \\
+LRU prefix cache, admit all & 1.50 & 400 & 385--400 & 0.98 & 1.00 \\
+request-scoped, TRIM & 1.50 & 172 & 98--205 & 2.28 & 2.08 \\
+request-scoped, no TRIM & 1.50 & 66 & 53--76 & 5.95 & 5.17 \\
+uniform random & 1.03 & 44 & 34--57 & 8.93 & 7.53 \\
 \bottomrule
 \end{tabular}

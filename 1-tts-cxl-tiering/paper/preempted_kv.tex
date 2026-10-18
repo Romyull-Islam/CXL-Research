@@ -28,7 +28,7 @@ worth: its gain grows with the tokens a workload recomputes per token it generat
 saturates at the ratio of recompute to load cost. On real vLLM with its CPU tier, four models of
 three architectures and two benchmarks, it predicts measured gains of 6\% to 372\% to within $-2$
 to $+15\%$ when recompute is timed alongside decoding. We then apply it to preempted requests, 30 to
-99\% of requests in saturated reasoning serving. In seven simulated deployments a decoded token
+99\% of requests in simulated saturated reasoning serving. In seven simulated deployments a decoded token
 costs 4 to 30 recomputed ones and first-come-first-served preemption keeps $R$ below 0.9, so a tier
 for preempted KV adds only 2 to 10\% to saturation throughput, nothing to goodput at usable latency
 targets, and fits in host DRAM except for offline best-of-$N$ batches.
@@ -61,9 +61,10 @@ is proposed for the same role~\cite{samsung_cmmd}.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_teaser.pdf}
-\caption{Observed against model-predicted throughput gain of a KV tier. Blue: 56 simulated
-saturation runs of preempted KV (seven deployments, FlashAttention-3 and -2 calibrations). Red: real
-vLLM with its CPU tier, four models, two benchmarks, $c_r$ measured alongside decoding.}
+\caption{Observed against predicted throughput gain of a KV tier. Gray: 56 simulated saturation runs
+of preempted KV (seven deployments, FlashAttention-3 and -2 calibrations), predicted as $R/\rho$.
+Pink: real vLLM with its CPU tier, four models, two benchmarks, predicted by Eq.~\ref{eq:gain} with
+$c_r$ measured alongside decoding.}
 \label{fig:teaser}
 \end{figure}
 
@@ -72,7 +73,7 @@ When $R$ is in the thousands, as when a 48K-token
 document is recomputed for a 2-token answer, the tier multiplies throughput, up to the ratio of
 recompute to load cost. When $R$ is below one, as for preempted requests, the gain cannot exceed
 $R$ divided by the cost of a decoded token in recomputed tokens, $\rho$, which compute-bound
-prefill makes 4 to 30 in the deployments we simulate.
+prefill makes 4 to 30 in the deployments we simulate (Fig.~\ref{fig:teaser}).
 This letter contributes:
 \begin{itemize}
 \item a first-order model of a KV tier's throughput gain (Section~\ref{sec:model});
@@ -85,7 +86,8 @@ serving over seven deployments, validated against LLMServingSim and vLLM (Sectio
 
 \section{A First-Order Model}
 \label{sec:model}
-Let $c_d$ be the GPU time per generated token when nothing is recomputed, $c_r$ the time to
+Let $c_d$ be the GPU time per generated token spent on everything but recomputation (decode steps and
+first prefills), $c_r$ the time to
 recompute one token and $c_l$ the GPU time to load one from the tier. If a workload recomputes $R$
 tokens per generated token, a tier that keeps them changes the time per generated token from
 $c_d+Rc_r$ to $c_d+Rc_l$, so throughput at saturation rises by
@@ -100,7 +102,7 @@ capacity, decides the gain. With $c_l=0$ (an ideal tier) $g=R/\rho$ is an upper 
 \textbf{Why $\rho$ is large.} A decode step reads the weights and every running request's KV from
 HBM, and with the KV cache full it reads all of it, so $c_d \approx (W + K)/(B \cdot
 \mathrm{BW})$ for weights $W$, KV $K$ and batch $B$. Recompute is a prefill: $2P$ FLOPs per token for
-$P$ parameters plus attention, executed compute-bound. For a 70B model on 8 H100 GPUs $\rho$ is 7 to 15.
+$P$ parameters plus attention, executed compute-bound. For a 70B model on 8 H100 GPUs $\rho$ is 7 to 15 (FlashAttention-3).
 
 \textbf{Why $R$ is small for preemption.} vLLM puts a preempted request at the head of the waiting
 queue, and part of its KV is still in the GPU prefix cache when it resumes: 10 to 53\% of resumed
@@ -124,11 +126,12 @@ once in round-robin order, so a document's KV leaves the GPU before its next que
 the CPU tier holds all documents. $c_r$ (\SIrange{16}{129}{\micro\second}) comes from a separate
 prefill microbenchmark, interpolated to each document's length; $c_l$ (\SIrange{1.2}{2.4}{\micro\second})
 is the KV bytes per token over the measured 21.6 to \SI{24.0}{\giga\byte\per\second} pinned
-host-to-GPU bandwidth; $c_d$ comes from the offloading run.
+host-to-GPU bandwidth; $c_d$ comes from the offloading run, so this test checks the recompute and load
+terms of Eq.~\ref{eq:gain}, not $c_d$.
 
 Over two or three repetitions (spread at most 2.2\%, 17\% for 4-token answers) the model
 over-predicts in all 24 cases, by 4 to 12\% on the dense models and 17 to 33\% on the mixture of
-experts (Table~\ref{tab:reuse}). The error is in $c_r$: here recompute shares steps with decoding
+experts (Table~\ref{tab:reuse}). The error lies mostly in $c_r$: here recompute shares steps with decoding
 requests, which already read the weights. Measured that way, as the time 16 extra 4,096-token
 prefills add to 7 decoding requests, $c_r$ is 3 to 5\% lower on the dense models and 12 to 14\%
 lower on the mixture of experts, and the error is $-2$ to $+8\%$ in 23 of 24 cases and $+15\%$ in
@@ -138,7 +141,8 @@ answer tokens, and the GPU cache holds at most 7 requests.
 \begin{table}[t]
 \centering
 \caption{Real vLLM: gain of the CPU tier over recomputation for answers of 4, 64 and 512 tokens,
-and the model's error with $c_r$ measured alone or alongside decoding.}
+and the model's error (predicted over measured gain, minus 1) with $c_r$ measured alone or
+alongside decoding.}
 \label{tab:reuse}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -179,7 +183,8 @@ FP8 on 8 H200, whose replicated MLA latent holds only 0.56M tokens. vLLM default
 \centering
 \includegraphics[width=\columnwidth]{fig_gain.pdf}
 \caption{Saturation throughput gain of keeping preempted KV (unlimited tier) over recomputing it;
-bars use FlashAttention-3 efficiency, whiskers the FlashAttention-2 calibration.}
+bars use FlashAttention-3 efficiency, whiskers the FlashAttention-2 calibration; 8 GPUs unless
+marked.}
 \label{fig:gain}
 \end{figure}
 
@@ -187,11 +192,11 @@ bars use FlashAttention-3 efficiency, whiskers the FlashAttention-2 calibration.
 keeping preempted KV raises throughput by 2 to 10\% (median 5.5\%) and by at most 13\% with the
 pessimistic prefill calibration (Fig.~\ref{fig:gain}). The simulated gains match $R/\rho$, with
 $c_d$ and $c_r$ taken from each recompute run, with correlation 0.997 and a mean absolute error of
-0.3 points (at most 0.9; Fig.~\ref{fig:teaser}). The gain is largest for 70B on H200 and B200, whose
-larger batches make decode cheaper per token, and smallest for DeepSeek-R1.
+0.3 points (at most 0.9; Fig.~\ref{fig:teaser}). The gain is largest for 70B on H200 and B200 (7.3 to 10.0\%), whose
+larger batches make decode cheaper per token, and smallest for DeepSeek-R1 (1.7 to 2.9\%).
 
 \textbf{Admission tuning.} Lowering vLLM's running-request limit from 1,024 to the best value (96 to
-192, 512 for DeepSeek-R1) recovers 0 to 6\% by itself in four deployments; over the best-tuned
+192, 512 for DeepSeek-R1 best-of-$N$) recovers 0 to 6\% by itself in four deployments; over the best-tuned
 recompute baseline an unlimited tier adds 1.7 to 5.9\% with BF16 KV and 5 to 8\% with FP8 KV (70B,
 best-of-$N$), the most favorable case we found, because FP8 halves the KV bytes read per decode step
 and so cuts $\rho$ by 44 to 49\%.
@@ -204,16 +209,17 @@ to 6.4\%. Goodput, the highest load that keeps the 99th-percentile time to first
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_capacity.pdf}
-\caption{Share of the unlimited tier's gain kept as tier capacity grows (median over 70B on H100 and
-H200, QwQ-32B and DeepSeek-R1). LRU: write-through with LRU eviction.}
+\caption{Share of the unlimited swap tier's gain kept as tier capacity grows (median over 70B on H100
+and H200, QwQ-32B on 4 H100 and DeepSeek-R1). LRU: write-through with LRU eviction, which exceeds
+100\% where it beats the unlimited swap tier.}
 \label{fig:cap}
 \end{figure}
 
 \textbf{Capacity.} For the Bailian trace, even submitted all at once, a swap tier of 0.1 to 0.25
 times the HBM KV capacity keeps 93 to 100\% of the gain (Fig.~\ref{fig:cap}); with its real
-arrivals the tier peaks at 62\,GB. Only best-of-$N$ batches submitted at once need 1 to 2 times the
-HBM KV with swap and 2 to 4 times with LRU write-through, up to 3.4\,TB for 70B on 8 H200 GPUs,
-against 2\,TB of DRAM in a DGX node. Pooling eight nodes' tiers saves 49 to 64\% of capacity, but the
+arrivals the tier peaks at 50\,GB below saturation and 62\,GB at 1.05 times it. Only best-of-$N$ batches submitted at once need 1 to 2 times the
+HBM KV with swap and 2 to 4 times with LRU write-through, up to 3.4\,TB for 70B on 8 H200 GPUs
+(4.5\,TB with FP8 KV on 8 B200), against 2\,TB of DRAM in a DGX node. Pooling eight nodes' tiers saves 49 to 64\% of capacity, but the
 pooled peak (at most 1.3\,TB) is a twelfth of the eight nodes' 16\,TB of DRAM, so capacity beyond host DRAM is
 not needed.
 
@@ -224,8 +230,8 @@ $R=0.43$ against $\rho$ = 23 to 128 at 2K to 16K tokens of context, so $R/\rho$ 
 
 \section{When Does a Tier Pay?}
 \label{sec:pays}
-The model points to three ways a KV tier becomes worth its memory. First, cheaper decode lowers
-$\rho$: FP8 or INT4 KV halves or quarters the bytes read per decode step, and larger HBM allows larger
+The model points to three ways a KV tier comes to pay. First, cheaper decode lowers
+$\rho$: FP8 or INT4 KV halves or quarters the KV bytes read per decode step, and larger HBM allows larger
 batches; with FP8 KV our gain over tuned admission rises to 5 to 8\%. Second, schedulers that preempt on purpose raise $R$:
 a latency-oriented scheduler that time-slices long requests, as in skip-join multi-level
 feedback~\cite{fastserve}, would recompute the same context at every slice without a tier, so $R$ can
@@ -233,7 +239,7 @@ exceed 1; FastServe pairs its scheduler with host-memory KV. Third, workloads wh
 their outputs raise $R$: document questions~\cite{samsung_cmmd} and agents whose context is evicted
 while they wait for a tool and is recomputed for a short next turn~\cite{efficientagent,unison}. For
 preempted KV under first-come-first-served admission none of these holds: over-admission rather
-than missing capacity causes the recomputation, and a better admission limit removes part of it at
+than missing capacity causes the recomputation, and a better admission limit recovers 0 to 6\% at
 no cost. An operator can check a deployment with three ratios: $R$, the scheduled tokens beyond
 prompt and output tokens per output token; $\rho$, from a short microbenchmark like the one above;
 and $c_l/c_r$, from the tier's bandwidth.
@@ -256,19 +262,16 @@ for preempted KV in reasoning traffic.
 
 The step-time model is calibrated on profiles up to 4K tokens on H100 (16K on A100) and extrapolated
 with the roofline beyond; MLA and MoE timings are not validated against measurements; the preemption
-simulations do not model prompts shared across requests. The real-vLLM tests use 1B to 7B models on one GPU (Gemma-3's
-sliding-window layers did not fit the fixed GPU cache), and $c_d$ there is taken from the offloading run, so the test checks the recompute and load
-terms of Eq.~\ref{eq:gain}, not $c_d$. On the reasoning trace the simulator's LRU tier removes 99.7\% of the recomputed tokens, where
+simulations do not model prompts shared across requests. The real-vLLM tests use 0.5B to 7B models on one GPU (Gemma-3's
+sliding-window layers did not fit the fixed GPU cache). On the reasoning trace the simulator's LRU tier removes 99.7\% of the recomputed tokens, where
 vLLM's removes 43\%, so simulated tier gains are upper bounds.
 
 \section{Conclusion}
-A KV tier pays in proportion to the tokens it saves from recomputation per token generated, up to the
-ratio of recompute to load cost; on real vLLM, four models and two benchmarks, this predicts gains of 6\%
-to 372\% to within $-2$ to $+15\%$ with recompute timed alongside decoding.
-For reasoning and test-time-scaling workloads, keeping preempted KV in host DRAM or CXL memory is
-worth 2 to 10\% of saturation throughput and nothing at usable latency, because in the deployments
-we simulate a recomputed token costs a fourth to a thirtieth of a decoded one and first-come-first-served preemption recomputes
-fewer than one token per token generated.
+Whether a KV tier pays follows from three ratios a deployment can measure: $R$, $\rho$ and $c_l/c_r$.
+For preempted KV in reasoning serving, $R<1$ and $\rho$ of 4 to 30 cap the gain at 2 to 10\%, so
+host DRAM, not CXL memory, is the right size of tier; a tier pays when $R$ is large, as for reused
+prefixes and agents' evicted contexts. Code and results:
+\url{https://github.com/Romyull-Islam/CXL-Research} (folder 1-tts-cxl-tiering).
 
 \bibliographystyle{IEEEtran}
 \bibliography{p1}

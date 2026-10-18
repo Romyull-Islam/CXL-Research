@@ -7,7 +7,7 @@ patent, SSB and QOLB as prior art to cite and separate; the closest new items ar
 requests to busy lines) and Intel US11093398B2 (remote MONITOR/MWAIT); HPCA'13 already names
 timeouts as future work, so the claim rests on the CXL-specific design. Evidence now: the five
 rules are model-checked in TLA+ (tla/), and the device runs in gem5 with x86 programs on up to 36
-hosts (gem5-model/): parked waiters make 1.4 device reads per message instead of 39 to 750 and leave
+hosts (gem5-model/): parked waiters make 1.4 to 1.5 waiting reads per message instead of 39 (740 to 750 for 500 us waits) and leave
 tenants over 99% of a pooled device's bandwidth (77 to 79% with polling), at equal or slightly lower
 latency (1.25 to 1.28x better than the best software scheme only for one-line messages). The SimPy model
 (model/) is kept as a cross-check; its 1.3 to 4x latency gains assumed 64 B uncached loads and are

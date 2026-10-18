@@ -28,5 +28,4 @@ liveness, with a write-through or a write-back writer. Removing a rule breaks on
 without R1 the producer's ordinary read waits for the timeout; without R1 and R2 its releasing
 write does too; without R3 a read outlives the Root Port timeout; without R4 a consumer accepts
 stale data; without R5 a write-back writer's release waits for the timeout. R2 alone is redundant
-once R1 holds, because a parked read then holds no credit; CXL provides it anyway (RwD may pass
-Req).
+once R1 holds, because a parked read then holds no credit; CXL provides it anyway (with BI, RwD must pass Req).
