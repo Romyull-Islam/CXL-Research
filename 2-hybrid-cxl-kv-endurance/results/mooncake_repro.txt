@@ -1,0 +1,14 @@
+conversation: pooled hit share 0.359
+  random       slack        0: hit 0.106  pool advantage  +240%  imbalance 1.07
+  prefix-aware slack        0: hit 0.251  pool advantage   +43%  imbalance 1.01
+  prefix-aware slack     0.05: hit 0.341  pool advantage    +5%  imbalance 1.05
+  prefix-aware slack     0.25: hit 0.336  pool advantage    +7%  imbalance 1.25
+  prefix-aware slack        1: hit 0.327  pool advantage   +10%  imbalance 2.01
+  prefix-aware slack    1e+09: hit 0.136  pool advantage  +165%  imbalance 10.00
+toolagent: pooled hit share 0.552
+  random       slack        0: hit 0.378  pool advantage   +46%  imbalance 1.05
+  prefix-aware slack        0: hit 0.479  pool advantage   +15%  imbalance 1.01
+  prefix-aware slack     0.05: hit 0.536  pool advantage    +3%  imbalance 1.05
+  prefix-aware slack     0.25: hit 0.537  pool advantage    +3%  imbalance 1.25
+  prefix-aware slack        1: hit 0.530  pool advantage    +4%  imbalance 2.01
+  prefix-aware slack    1e+09: hit 0.407  pool advantage   +36%  imbalance 10.00

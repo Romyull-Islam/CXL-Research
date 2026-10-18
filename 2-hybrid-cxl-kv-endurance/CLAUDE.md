@@ -1,0 +1,52 @@
+# Project context for Claude
+
+Endurance limits of LLM KV caching on hybrid DRAM-over-NAND CXL devices. Read PROJECT.md first (everything is in it), then
+findings/04-endurance-wall.md (it ends with the novelty verdict).
+
+## Where it stands
+
+- Journal analysis done 2026-10-09 (findings/05): per-node scaling fixed, FTL with GC validated
+  against Desnoyers' closed forms and MQSim, TLC/pSLC/SLC x BF16/FP8/INT4 provisioning, write amplification by
+  KV death order, shared pool at Mooncake scale. Headline: admit-all never fits TLC; TLC fits only
+  API-like traffic at partial duty or MLA with INT4; interactive traffic needs pSLC or SLC.
+- Novelty narrow but present; target ACM TOS. New competitors to cite: HBFlex, Lachesis,
+  2609.07175, 2609.39131, HBF Sucks?, and Lee et al. HotStorage'25 (TRIM for CXL memory).
+- Paper framing: "How KV Dies Decides How Flash Wears"; lead claim is death order and no-TRIM.
+  Mechanism (findings/06, paper Section "Telling the device that KV is dead"): a per-request
+  discard on the management path; the device drops dead KV from DRAM and trims it, cutting flash
+  writes 3.4 to 9.1x with commands up to 100 ms; needs reuse-after-acknowledgment and under 10 ms
+  per command at about 100 completions/s.
+  Motivation: NVIDIA CMX flash KV tier, Dynamo KVBM SSD tier, ScaleFlux 7 to 10 DWPD KV SSDs;
+  a 10 DWPD 2 TB device covers 40 of 108 second-hit cases (9 of 54 at full prefill duty).
+- Memory: endurance_sweep.py peaks near 1 GB per worker; use WORKERS=5 at most on this host.
+
+- Real-drive check (findings/07, 2026-10-13): on a 1 TB NVMe drive, slowdowns 0.98 / 2.28 / 5.95 for LRU,
+  request-scoped with and without TRIM (FTL WAF 1.00 / 2.08 / 5.17); discard 0.5 to 82 ms idle.
+
+## Next steps
+
+Paper drafted (paper/endurance_tos.tex). Left: the author's items under "Remaining work for a journal
+version" in PROJECT.md (department, fresh novelty search, optional real-drive replay).
+
+## Working rules (from the author)
+
+- The author is the sole author. Never run git commit or git push; leave changes in the working
+  tree and give the author the exact git commands. Never add a Co-Authored-By line.
+- An idea is only presented as viable after three gates: (1) novelty, an adversarial search of
+  papers, arXiv and patents; (2) significance, a first-order model showing a gain the target venue
+  would care about; (3) feasibility with evaluation methods that venue accepts. Never promise
+  acceptance; say which gate fails.
+- Re-run the novelty search before any submission; this area changes within weeks.
+- Write plainly: no decorative banner comments, no long narrative comments, no em dashes.
+
+## Environment
+
+Single-socket i9-14900K, 32 GB DRAM, RTX 4500 Ada 24 GB (usually occupied by the author's
+llama-server; do not stop it). No CXL hardware. Python analysis env: create a venv and
+pip install -r requirements.txt; downloaded data lives in data/ (fetch_data.sh, not in git).
+
+## History
+
+This project came out of a two-day idea search on 2026-10-08 and 2026-10-09 (16+ ideas checked,
+most rejected by prior work or patents). The full conversation is in chat/ (not in git); read it
+for the reasoning behind every decision. PROJECT.md is the single document for the project: idea, gap, goal, motivation, related work, evidence and plan.

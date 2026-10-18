@@ -1,0 +1,9 @@
+case,op,logical_units,host_writes,mqsim_waf,mqsim_waf_plus9blocks
+lru_chat_oracle,0.07,50606,1947464,1.0427,1.0286
+lru_chat_oracle,0.28,50606,1947464,1.0,1.0
+lru_chat_all,0.07,50606,4552860,1.0043,1.0024
+lru_chat_all,0.28,50606,4552860,1.0,1.0
+scoped_notrim,0.07,139365,2462169,5.6489,5.3588
+scoped_notrim,0.28,139365,2462169,1.9683,1.9519
+uniform50k,0.07,50000,856064,8.9171,7.522
+uniform50k,0.28,50000,1024000,2.4997,2.4265

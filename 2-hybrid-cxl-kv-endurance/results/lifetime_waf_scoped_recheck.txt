@@ -1,0 +1,4 @@
+{'policy': 'request-scoped', 'trim': True, 'op': 0.07, 'waf': 2.0778272257663257, 'logical_blocks': 139365, 'host_writes': 2462169}
+{'policy': 'request-scoped', 'trim': False, 'op': 0.07, 'waf': 5.16850711194588, 'logical_blocks': 139365, 'host_writes': 2462169}
+{'policy': 'request-scoped', 'trim': True, 'op': 0.28, 'waf': 1.480902374648433, 'logical_blocks': 139365, 'host_writes': 2462169}
+{'policy': 'request-scoped', 'trim': False, 'op': 0.28, 'waf': 1.9596837832428569, 'logical_blocks': 139365, 'host_writes': 2462169}

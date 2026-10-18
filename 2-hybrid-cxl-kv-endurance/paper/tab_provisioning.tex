@@ -1,0 +1,24 @@
+\begin{tabular}{llllllll}
+\toprule
+trace & model & 100\% BF16 & 100\% FP8 & 100\% INT4 & 30\% BF16 & 30\% FP8 & 30\% INT4 \\
+\midrule
+Bailian API & DeepSeek-V3 & pSLC & pSLC & TLC-3 & TLC-3 & TLC-3 & TLC-1 \\
+Bailian API & Llama-3.1-70B & SLC & SLC & pSLC & pSLC & TLC-3 & TLC-3 \\
+Bailian API & Qwen2.5-7B & SLC & SLC & pSLC & SLC & pSLC & TLC-3 \\
+Bailian thinking & DeepSeek-V3 & SLC & pSLC & pSLC & pSLC & pSLC & TLC-3 \\
+Bailian thinking & Llama-3.1-70B & none & SLC & SLC & SLC & pSLC & pSLC \\
+Bailian thinking & Qwen2.5-7B & none & SLC & SLC & SLC & SLC & pSLC \\
+Mooncake tool-agent & DeepSeek-V3 & SLC & SLC & pSLC & pSLC & pSLC & TLC-3 \\
+Mooncake tool-agent & Llama-3.1-70B & none & SLC & SLC & SLC & pSLC & pSLC \\
+Mooncake tool-agent & Qwen2.5-7B & none & none & SLC & SLC & SLC & pSLC \\
+Mooncake conversation & DeepSeek-V3 & SLC & SLC & pSLC & pSLC & pSLC & TLC-3 \\
+Mooncake conversation & Llama-3.1-70B & none & SLC & SLC & SLC & pSLC & pSLC \\
+Mooncake conversation & Qwen2.5-7B & none & none & SLC & SLC & SLC & pSLC \\
+Bailian coder & DeepSeek-V3 & SLC & SLC & SLC & SLC & pSLC & pSLC \\
+Bailian coder & Llama-3.1-70B & none & none & SLC & SLC & SLC & pSLC \\
+Bailian coder & Qwen2.5-7B & none & none & SLC & none & SLC & SLC \\
+Bailian chat & DeepSeek-V3 & none & SLC & SLC & SLC & pSLC & pSLC \\
+Bailian chat & Llama-3.1-70B & none & none & SLC & SLC & SLC & pSLC \\
+Bailian chat & Qwen2.5-7B & none & none & none & none & SLC & SLC \\
+\bottomrule
+\end{tabular}

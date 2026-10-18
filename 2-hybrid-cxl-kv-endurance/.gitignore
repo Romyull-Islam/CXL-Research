@@ -1,0 +1,9 @@
+data/
+__pycache__/
+*.pyc
+.venv/
+# Private conversation transcript; remove this line to publish it
+chat/
+results/*.log
+paper/*.pdf
+!paper/fig_*.pdf
