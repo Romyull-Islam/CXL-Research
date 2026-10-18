@@ -1,0 +1,48 @@
+{
+ "model": "ibm-granite/granite-3.1-1b-a400m-instruct",
+ "tp": 1,
+ "gpus": "0",
+ "config": "recompute",
+ "num_blocks": 24358,
+ "offload_gb": 32.0,
+ "gpu_name": "NVIDIA RTX 4500 Ada Generation, 24570 MiB",
+ "rows": [
+  {
+   "ctx": 2048,
+   "batch": 141,
+   "prefill_s": 4.274890899658203,
+   "prefill_decode_s": 10.46304702758789,
+   "c_pre": 1.48038941283598e-05,
+   "step_s": 0.048344969749450684,
+   "c_dec": 0.00034287212588262895,
+   "rho": 23.160941500236028
+  },
+  {
+   "ctx": 8192,
+   "batch": 37,
+   "prefill_s": 5.292780637741089,
+   "prefill_decode_s": 11.344024658203125,
+   "c_pre": 1.7461929363324434e-05,
+   "step_s": 0.04727534390985966,
+   "c_dec": 0.0012777119975637746,
+   "rho": 73.17129573593243
+  },
+  {
+   "ctx": 16384,
+   "batch": 18,
+   "prefill_s": 6.508075714111328,
+   "prefill_decode_s": 12.016823530197144,
+   "c_pre": 2.2067856560978624e-05,
+   "step_s": 0.04303709231317043,
+   "c_dec": 0.002390949572953913,
+   "rho": 108.34534683271856
+  }
+ ],
+ "gpu_monitor": {
+  "n_samples": 42,
+  "foreign_pids": [
+   2498993
+  ],
+  "contended": true
+ }
+}

@@ -1,0 +1,7 @@
+   policy  preempt_kvsim  preempt_lss  recomputed_kvsim  recomputed_lss  makespan_kvsim  makespan_lss  tpot_ms_kvsim  tpot_ms_lss
+recompute             50           50            416018          567365          2053.5      1782.939          66.79         58.3
+ cpu tier             50           50               388            7056          2030.7      1735.561          66.04         56.7
+
+makespan saved by the tier: kvsim 1.11%, LLMServingSim 2.66%
+per-request finish time, recompute: correlation 0.9999, median |error| 14.2%
+recompute without GPU prefix-cache reuse of preempted blocks (LLMServingSim reports 0 prefix hits): preemptions 50, recomputed tokens 565641 vs 567365

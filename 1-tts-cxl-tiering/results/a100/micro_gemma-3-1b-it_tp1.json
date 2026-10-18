@@ -1,0 +1,48 @@
+{
+ "model": "unsloth/gemma-3-1b-it",
+ "tp": 1,
+ "gpus": "0",
+ "config": "recompute",
+ "num_blocks": 294160,
+ "offload_gb": 32.0,
+ "gpu_name": "NVIDIA RTX 4500 Ada Generation, 24570 MiB",
+ "rows": [
+  {
+   "ctx": 2048,
+   "batch": 256,
+   "prefill_s": 9.651405334472656,
+   "prefill_decode_s": 16.2767436504364,
+   "c_pre": 1.840859476942569e-05,
+   "step_s": 0.05176045559346676,
+   "c_dec": 0.00020218927966197953,
+   "rho": 10.983417376202443
+  },
+  {
+   "ctx": 8192,
+   "batch": 256,
+   "prefill_s": 40.33170795440674,
+   "prefill_decode_s": 53.69369697570801,
+   "c_pre": 1.923165700645768e-05,
+   "step_s": 0.10439053922891617,
+   "c_dec": 0.0004077755438629538,
+   "rho": 21.20334944232987
+  },
+  {
+   "ctx": 16384,
+   "batch": 227,
+   "prefill_s": 74.34777021408081,
+   "prefill_decode_s": 94.0911808013916,
+   "c_pre": 1.9990430713019904e-05,
+   "step_s": 0.15424539521336555,
+   "c_dec": 0.0006794951330985267,
+   "rho": 33.99102014625262
+  }
+ ],
+ "gpu_monitor": {
+  "n_samples": 159,
+  "foreign_pids": [
+   2498993
+  ],
+  "contended": true
+ }
+}

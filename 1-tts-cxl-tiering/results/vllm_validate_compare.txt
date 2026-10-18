@@ -1,0 +1,3 @@
+recompute    preemptions kvsim 277 vLLM 297; recomputed tokens kvsim 117656 vLLM 111479; loaded tokens kvsim 0
+cpu_offload  preemptions kvsim 352 vLLM 269; recomputed tokens kvsim 2274 vLLM 73495; loaded tokens kvsim 116960
+measured throughput: low pressure 5613, recompute 5299, cpu offload 5090 tok/s; offload gain -3.9%

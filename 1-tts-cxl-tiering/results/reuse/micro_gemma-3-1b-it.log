@@ -1,0 +1,3 @@
+ctx   2048 batch  256  recompute   18.41 us/token  decode   202.19 us/token  rho   11.0
+ctx   8192 batch  256  recompute   19.23 us/token  decode   407.78 us/token  rho   21.2
+ctx  16384 batch  227  recompute   19.99 us/token  decode   679.50 us/token  rho   34.0

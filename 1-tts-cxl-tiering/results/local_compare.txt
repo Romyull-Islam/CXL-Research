@@ -1,0 +1,12 @@
+
+micro_DeepSeek-R1-Distill-Qwen-1.5B_tp1.json (NVIDIA RTX 4500 Ada Generation, 24570 MiB), contended=False
+  ctx   2048 B   17  rho measured   22.5 kvsim   11.4   recompute us/token  30.09 vs  22.93   decode step ms  11.51 vs   4.45
+  ctx   8192 B    4  rho measured   76.7 kvsim   40.9   recompute us/token  35.74 vs  26.26   decode step ms  10.97 vs   4.29
+  ctx  16384 B    2  rho measured  127.8 kvsim   68.5   recompute us/token  43.22 vs  31.09   decode step ms  11.05 vs   4.26
+
+run_DeepSeek-R1-Distill-Qwen-1.5B_tp1_bailian.json: 2 runs, 1 contended (dropped)
+             thr  thr_sd    pre       rec  n
+config                                      
+recompute  513.2     NaN  275.0  569401.0  1
+  kvsim recompute  : 1325 tok/s, preemptions 270, recomputed 574234
+  kvsim cpu_offload: 1341 tok/s, preemptions 267, recomputed 1698

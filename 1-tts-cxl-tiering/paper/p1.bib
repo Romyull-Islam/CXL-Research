@@ -1,0 +1,338 @@
+% p1.bib: short paper on keeping preempted KV off-GPU for reasoning workloads
+% Verified 2026-10-09 against arXiv API, Crossref, usenix.org, PMLR, MLSys proceedings, HF, GitHub.
+
+@inproceedings{vllm,
+  author    = {Woosuk Kwon and Zhuohan Li and Siyuan Zhuang and Ying Sheng and Lianmin Zheng and Cody Hao Yu and Joseph Gonzalez and Hao Zhang and Ion Stoica},
+  title     = {Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  booktitle = {Proceedings of the 29th Symposium on Operating Systems Principles (SOSP '23)},
+  pages     = {611--626},
+  publisher = {ACM},
+  year      = {2023},
+  doi       = {10.1145/3600006.3613165}
+}
+
+@inproceedings{vidur,
+  author    = {Amey Agrawal and Nitin Kedia and Jayashree Mohan and Ashish Panwar and Nipun Kwatra and Bhargav S. Gulavani and Ramachandran Ramjee and Alexey Tumanov},
+  title     = {{Vidur}: A Large-Scale Simulation Framework for {LLM} Inference},
+  booktitle = {Proceedings of Machine Learning and Systems (MLSys 2024)},
+  volume    = {6},
+  pages     = {351--366},
+  year      = {2024},
+  eprint    = {2405.05465},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{llmservingsim2,
+  author    = {Jaehong Cho and Hyunmin Choi and Guseul Heo and Jongse Park},
+  title     = {{LLMServingSim} 2.0: A Unified Simulator for Heterogeneous and Disaggregated {LLM} Serving Infrastructure},
+  booktitle = {2026 IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS)},
+  publisher = {IEEE},
+  year      = {2026},
+  pages     = {1--14},
+  doi       = {10.1109/ISPASS69572.2026.00012},
+  eprint    = {2602.23036},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{infercept,
+  author    = {Reyna Abhyankar and Zijian He and Vikranth Srivatsa and Hao Zhang and Yiying Zhang},
+  title     = {{InferCept}: Efficient Intercept Support for Augmented Large Language Model Inference},
+  booktitle = {Proceedings of the 41st International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {235},
+  pages     = {81--95},
+  publisher = {PMLR},
+  year      = {2024},
+  eprint    = {2402.01869},
+  archivePrefix = {arXiv}
+}
+
+@misc{cacheopt,
+  author        = {Haiying Shen and Tanmoy Sen and Masahiro Tanaka},
+  title         = {Mitigating {KV} Cache Competition to Enhance User Experience in {LLM} Inference},
+  year          = {2025},
+  eprint        = {2503.13773},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2503.13773}
+}
+
+% NSDI '26 title differs from the arXiv title ("Fast Distributed Inference Serving for Large Language Models").
+@inproceedings{fastserve,
+  author    = {Bingyang Wu and Yinmin Zhong and Zili Zhang and Shengyu Liu and Fangyue Liu and Yuanhang Sun and Gang Huang and Xuanzhe Liu and Xin Jin},
+  title     = {{FastServe}: Iteration-Level Preemptive Scheduling for Large Language Model Inference},
+  booktitle = {23rd USENIX Symposium on Networked Systems Design and Implementation (NSDI 26)},
+  pages     = {57--74},
+  publisher = {USENIX Association},
+  address   = {Renton, WA},
+  month     = may,
+  year      = {2026},
+  eprint    = {2305.05920},
+  archivePrefix = {arXiv}
+}
+
+@misc{efficientagent,
+  author        = {Kunming Shao and Jierun Chen and Jiangnan Yu and Xiao-Hui Li and Chaofan Tao and Yanli Wang and Huanxin Lin and Kwang-Ting Cheng and Chi Ying Tsui and Haoli Bai},
+  title         = {{EfficientAgent}: What Makes {KV} Cache Offloading Work for Concurrent Agents?},
+  year          = {2026},
+  eprint        = {2609.33762},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.33762}
+}
+
+@inproceedings{fa3,
+  author    = {Jay Shah and Ganesh Bikshandi and Ying Zhang and Vijay Thakkar and Pradeep Ramani and Tri Dao},
+  title     = {{FlashAttention-3}: Fast and Accurate Attention with Asynchrony and Low-precision},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  pages     = {68658--68685},
+  year      = {2024},
+  doi       = {10.52202/079017-2193},
+  eprint    = {2407.08608},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{matharena,
+  author    = {Mislav Balunovi{\'c} and Jasper Dekoninck and Ivo Petrov and Nikola Jovanovi{\'c} and Martin Vechev},
+  title     = {{MathArena}: Evaluating {LLMs} on Uncontaminated Math Competitions},
+  booktitle = {Advances in Neural Information Processing Systems 38 (NeurIPS 2025)},
+  pages     = {22851--22888},
+  year      = {2025},
+  doi       = {10.52202/085713-0679},
+  eprint    = {2505.23281},
+  archivePrefix = {arXiv}
+}
+
+@misc{h4blog,
+  author       = {Edward Beeching and Lewis Tunstall and Sasha Rush},
+  title        = {Scaling Test-Time Compute with Open Models},
+  howpublished = {Hugging Face blog},
+  month        = dec,
+  year         = {2024},
+  url          = {https://huggingface.co/spaces/HuggingFaceH4/blogpost-scaling-test-time-compute}
+}
+
+@misc{bailian,
+  author       = {{alibaba-edu}},
+  title        = {{Qwen-Bailian} Anonymous Dataset},
+  howpublished = {GitHub repository, anonymized {LLM} usage traces from a {Qwen} serving cluster on {Aliyun Bailian}},
+  year         = {2025},
+  note         = {Repository created May 2025; accessed 2026-10-09},
+  url          = {https://github.com/alibaba-edu/qwen-bailian-usagetraces-anon}
+}
+
+% The NeurIPS 2025 version has a singular title and four authors; the arXiv version
+% ("Kinetics: Rethinking Test-Time Scaling Laws") lists six authors, adding Yang Zhou and Emma Strubell.
+@inproceedings{kinetics,
+  author    = {Ranajoy Sadhukhan and Zhuoming Chen and Haizhong Zheng and Beidi Chen},
+  title     = {Kinetics: Rethinking Test-Time Scaling Law},
+  booktitle = {Advances in Neural Information Processing Systems 38 (NeurIPS 2025)},
+  pages     = {94033--94066},
+  year      = {2025},
+  doi       = {10.52202/085713-2827},
+  eprint    = {2506.05333},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{infscaling,
+  author    = {Moiz Arif and Avinash Maurya and Sudharshan Vazhkudai and Bogdan Nicolae},
+  title     = {Understanding Inference Scaling for {LLMs}: Bottlenecks, Trade-offs, and Performance Principles},
+  booktitle = {Proceedings of the 53rd Annual International Symposium on Computer Architecture (ISCA), Industry Track},
+  pages     = {1070--1083},
+  publisher = {IEEE},
+  year      = {2026},
+  doi       = {10.1109/ISCA66397.2026.00084},
+  eprint    = {2605.19775},
+  archivePrefix = {arXiv}
+}
+
+@misc{oasiskv,
+  author        = {Can Xiao and Sukmin Cho and Junbong We and Zhixiong Niu and Jianyi Cheng and Yiren Zhao and Youngjin Kwon and Yongqiang Xiong and Rui Ma and Junyi Liu},
+  title         = {{OasisKV}: Scaling In-Decode {KV} Cache Beyond {HBM} with Lookahead Sparse Prefetching},
+  year          = {2026},
+  eprint        = {2608.08097},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2608.08097}
+}
+
+@misc{notallthoughts,
+  author        = {Aojie Yuan and Tianqi Shen and Dajun Zhang},
+  title         = {Not All Thoughts Need {HBM}: Semantics-Aware Memory Hierarchy for {LLM} Reasoning},
+  year          = {2026},
+  eprint        = {2605.09490},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2605.09490}
+}
+
+@inproceedings{fasttts,
+  author    = {Hao Mark Chen and Zhiwen Mo and Guanxi Lu and Shuang Liang and Lingxiao Ma and Wayne Luk and Hongxiang Fan},
+  title     = {{FastTTS}: Accelerating Test-Time Scaling for Edge {LLM} Reasoning},
+  booktitle = {Proceedings of the 31st ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2 (ASPLOS '26)},
+  pages     = {732--748},
+  publisher = {ACM},
+  year      = {2026},
+  doi       = {10.1145/3779212.3790161},
+  eprint    = {2509.00195},
+  archivePrefix = {arXiv}
+}
+
+@misc{congestion,
+  author        = {Ruicheng Ao and Jing Dong and Gan Luo and David Simchi-Levi},
+  title         = {Service-Induced Congestion in Memory-Constrained {LLM} Serving},
+  year          = {2026},
+  eprint        = {2606.15555},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2606.15555}
+}
+
+% NSDI '26 title differs from the arXiv title
+% ("RollPacker: Mitigating Long-Tail Rollouts for Fast, Synchronous RL Post-Training").
+@inproceedings{rollpacker,
+  author    = {Wei Gao and Yuheng Zhao and Dakai An and Tianyuan Wu and Lunxi Cao and Shaopan Xiong and Ju Huang and Weixun Wang and Siran Yang and Wenbo Su and Jiamang Wang and Lin Qu and Bo Zheng and Wei Wang},
+  title     = {{RollPacker}: Taming Long-Tail Rollouts for {RL} Post-Training with Tail Batching},
+  booktitle = {23rd USENIX Symposium on Networked Systems Design and Implementation (NSDI 26)},
+  pages     = {849--866},
+  publisher = {USENIX Association},
+  address   = {Renton, WA},
+  month     = may,
+  year      = {2026},
+  eprint    = {2509.21009},
+  archivePrefix = {arXiv}
+}
+
+@inproceedings{tang_cxl,
+  author    = {Yupeng Tang and Runxiang Cheng and Ping Zhou and Tongping Liu and Fei Liu and Wei Tang and Kyoungryun Bae and Jianjun Chen and Wu Xiang and Rui Shi},
+  title     = {Exploring {CXL}-based {KV} Cache Storage for {LLM} Serving},
+  booktitle = {Workshop on Machine Learning for Systems at NeurIPS 2024},
+  year      = {2024},
+}
+
+% Added 2026-10-09 after the final novelty check; verified on arxiv.org abstract pages and Crossref.
+@misc{sarathi,
+  author        = {Amey Agrawal and Ashish Panwar and Jayashree Mohan and Nipun Kwatra and Bhargav S. Gulavani and Ramachandran Ramjee},
+  title         = {{SARATHI}: Efficient {LLM} Inference by Piggybacking Decodes with Chunked Prefills},
+  year          = {2023},
+  eprint        = {2308.16369},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2308.16369}
+}
+@misc{infermax,
+  author        = {Kyoungmin Kim and Jiacheng Li and Kijae Hong and Qunyou Liu and Darong Huang and Anastasia Ailamaki},
+  title         = {Saving {GPU} Hours in {LLM} Inference System Development and Online Workloads with Simulation and {DBMS}-Inspired Cache Replacement Policies},
+  year          = {2024},
+  eprint        = {2411.07447},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2411.07447}
+}
+@misc{robustkv,
+  author        = {Jiaming Cheng and Duong The Do and Duong Tung Nguyen},
+  title         = {Robust {KV} Cache Management for {LLM} Serving under Output Token Length Uncertainty},
+  year          = {2026},
+  eprint        = {2607.16892},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2607.16892}
+}
+@inproceedings{distserve,
+  author    = {Yinmin Zhong and Shengyu Liu and Junda Chen and Jianbo Hu and Yibo Zhu and Xuanzhe Liu and Xin Jin and Hao Zhang},
+  title     = {{DistServe}: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving},
+  booktitle = {18th USENIX Symposium on Operating Systems Design and Implementation (OSDI 24)},
+  pages     = {193--210},
+  publisher = {USENIX Association},
+  year      = {2024}
+}
+@inproceedings{splitwise,
+  author    = {Pratyush Patel and Esha Choukse and Chaojie Zhang and Aashaka Shah and {\'I}{\~n}igo Goiri and Saeed Maleki and Ricardo Bianchini},
+  title     = {Splitwise: Efficient Generative {LLM} Inference Using Phase Splitting},
+  booktitle = {Proceedings of the 51st Annual International Symposium on Computer Architecture (ISCA)},
+  year      = {2024},
+  pages     = {118--132},
+  doi       = {10.1109/ISCA59077.2024.00019}
+}
+
+@inproceedings{restore_recompute,
+  author    = {Amirhossein Najafizadeh and Vasily Tarasov and Alex Merenstein and Yue Zhu and Erez Zadok},
+  title     = {{LLM} {KV}-cache: To Restore or To Recompute, That Is the Question},
+  booktitle = {Proceedings of the 18th ACM Workshop on Hot Topics in Storage and File Systems (HotStorage '26)},
+  pages     = {8--15},
+  publisher = {ACM},
+  address   = {Prague, Czech Republic},
+  year      = {2026},
+  doi       = {10.1145/3837053.3837336}
+}
+
+
+% Added 2026-10-09 for the motivation; checked on the publisher pages.
+@misc{samsung_cmmd,
+  author       = {{Samsung Semiconductor}},
+  title        = {Optimizing {KV} Cache Offloading to {CMM-D} in a {CXL} Switch-based Memory Pool},
+  howpublished = {White paper},
+  month        = jun,
+  year         = {2026},
+  url          = {https://download.semiconductor.samsung.com/resources/white-paper/Optimizing_KV_Cache_Offloading_to_CMM-D_in_a_CXL_Switch-based_Memory_Pool.pdf}
+}
+
+@misc{dynamo_kvbm,
+  author       = {{NVIDIA}},
+  title        = {{KVBM} Design, {NVIDIA Dynamo} v1.0.0},
+  howpublished = {GitHub},
+  year         = {2026},
+  url          = {https://github.com/ai-dynamo/dynamo/blob/v1.0.0/docs/design-docs/kvbm-design.md}
+}
+
+@misc{lmcache,
+  author        = {Yuhan Liu and Yihua Cheng and Jiayi Yao and Yuwei An and Xiaokun Chen and Shaoting Feng and Yuyang Huang and Samuel Shen and Rui Zhang and Kuntai Du and Junchen Jiang},
+  title         = {{LMCache}: An Efficient {KV} Cache Layer for Enterprise-Scale {LLM} Inference},
+  year          = {2025},
+  eprint        = {2510.09665},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2510.09665}
+}
+
+@misc{unison,
+  author        = {Fan He and Yan Li and Xiaoyang Zeng},
+  title         = {{UNISON}: A Co-Designed Near-Memory Scheduler of Session {KV} Residency for {LLM} Agents},
+  year          = {2026},
+  eprint        = {2609.09643},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.09643}
+}
+
+@misc{pykvcache,
+  author        = {Joseph Kanichai and Tiziano De Matteis and Animesh Trivedi},
+  title         = {Building py-kvcache: A Performance Characterization of External {KV} Caching for {vLLM} with {NVMe} {SSDs}},
+  year          = {2026},
+  eprint        = {2609.11744},
+  archivePrefix = {arXiv},
+  url           = {https://arxiv.org/abs/2609.11744}
+}
+
+@misc{mengoffload,
+  author       = {William Meng and Benjamin Lee and Hong Wang},
+  title        = {Understanding Bottlenecks for Efficiently Serving {LLM} Inference With {KV} Offloading},
+  year         = {2025},
+  howpublished = {arXiv:2601.19910},
+  url          = {https://arxiv.org/abs/2601.19910}
+}
+
+@misc{cacheflow,
+  author       = {Sean Nian and Hanzhang Shen and Zhiyu Wu and Jiahao Fang and Qilong Feng and Fan Lai},
+  title        = {{CacheFlow}: Efficient {LLM} Serving via Automated {3D}-Parallel {KV} Cache Restoration},
+  year         = {2026},
+  howpublished = {arXiv:2604.25080},
+  url          = {https://arxiv.org/abs/2604.25080}
+}
+
+@misc{licost,
+  author       = {Hanchen Li and Yuhan Liu and Yihua Cheng and Kuntai Du and Junchen Jiang},
+  title        = {Towards More Economical Context-Augmented {LLM} Generation by Reusing Stored {KV} Cache},
+  year         = {2025},
+  howpublished = {arXiv:2503.14647},
+  url          = {https://arxiv.org/abs/2503.14647}
+}
+
+@misc{vllmblog,
+  author       = {Or Ozeri and Danny Harnik},
+  title        = {Inside {vLLM}'s New {KV} Offloading Connector: Smarter Memory Transfer for Maximizing Inference Throughput},
+  year         = {2026},
+  month        = jan,
+  howpublished = {vLLM blog},
+  url          = {https://vllm.ai/blog/2026-01-08-kv-offloading-connector}
+}
