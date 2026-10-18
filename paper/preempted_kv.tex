@@ -25,15 +25,13 @@ USA (e-mail: mislam22@students.kennesaw.edu).}}% department to be added
 KV-cache tiers in host memory, SSD and CXL now ship in vLLM, LMCache and NVIDIA Dynamo, yet
 reported effects range from none to 5.8$\times$. We give a first-order model of what a tier is
 worth: its gain grows with the tokens a workload recomputes per token it generates, $R$, and
-saturates at the ratio of recompute to load cost. On real vLLM with its CPU tier, four models of three architectures and two benchmarks, it predicts
-measured gains of 6\% to 372\% to within $-2$ to $+15\%$ when the recompute cost is measured
-alongside decoding. We then apply it to the KV of preempted requests,
-which reasoning models make common. Prefill is compute-bound and decode bandwidth-bound, so in the
-seven deployments we simulate a decoded token costs 4 to 30 recomputed ones, and first-come-first-served preemption keeps $R$ below
-0.9. Across seven deployments, a simulator that follows vLLM's scheduler, checked against
-LLMServingSim and real vLLM, shows that a tier for preempted KV adds only 2 to 10\% to saturation
-throughput, nothing to goodput at usable latency targets, and fits in host DRAM except for offline
-best-of-$N$ batches.
+saturates at the ratio of recompute to load cost. On real vLLM with its CPU tier, four models of
+three architectures and two benchmarks, it predicts measured gains of 6\% to 372\% to within $-2$
+to $+15\%$ when recompute is timed alongside decoding. We then apply it to preempted requests, 30 to
+99\% of requests in saturated reasoning serving. In seven simulated deployments a decoded token
+costs 4 to 30 recomputed ones and first-come-first-served preemption keeps $R$ below 0.9, so a tier
+for preempted KV adds only 2 to 10\% to saturation throughput, nothing to goodput at usable latency
+targets, and fits in host DRAM except for offline best-of-$N$ batches.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -50,16 +48,13 @@ used by LMCache sustains 354K tokens/s on document questions where 512\,GB of DR
 batch~\cite{tang_cxl}; on one coding-agent workload, EfficientAgent finds that offloading speeds up one deployment, slows
 another and changes nothing on a third~\cite{efficientagent}; and
 vLLM recomputes preempted requests by default, its authors having found recomputation comparable to
-swapping at the default block size~\cite{vllm}. An operator deciding whether to buy host or CXL
-memory for KV cannot tell from these numbers what a given workload will get.
+swapping at the default block size~\cite{vllm}.
 
-Reasoning models make the question pressing. They generate thousands to hundreds of thousands of
-tokens per request with heavy-tailed lengths: on a production reasoning trace from
+Reasoning outputs are long and heavy-tailed: on a production reasoning trace from
 Qwen-Bailian~\cite{bailian} the median output is 1.7K tokens, the 99th percentile 35K, and the 10\%
 of requests with the longest outputs hold 69\% of the KV byte-seconds. KV memory, not compute,
 limits throughput~\cite{kinetics} and the batch~\cite{infscaling}, and requests that outgrow it are
-preempted: in our saturation runs 30 to 99\% of requests are preempted, and preemption is frequent
-in reasoning RL rollouts~\cite{rollpacker}. Keeping preempted KV in host memory was proposed in
+preempted: in our saturation runs 30 to 99\% of requests are preempted. Keeping preempted KV in host memory was proposed in
 InferCept, FastServe and CacheOPT~\cite{infercept,fastserve,cacheopt}; vLLM's CPU tier now restores preempted requests, and CXL
 is proposed for the same role~\cite{samsung_cmmd}.
 
@@ -77,16 +72,14 @@ When $R$ is in the thousands, as when a 48K-token
 document is recomputed for a 2-token answer, the tier multiplies throughput, up to the ratio of
 recompute to load cost. When $R$ is below one, as for preempted requests, the gain cannot exceed
 $R$ divided by the cost of a decoded token in recomputed tokens, $\rho$, which compute-bound
-prefill makes 4 to 30 in the deployments we simulate. Fig.~\ref{fig:teaser} shows the model against
-simulation and measurement across this range.
+prefill makes 4 to 30 in the deployments we simulate.
 This letter contributes:
 \begin{itemize}
 \item a first-order model of a KV tier's throughput gain (Section~\ref{sec:model});
 \item its test on real vLLM with four models of three architectures and two benchmarks, from $R=7$
 to 1,027 (Section~\ref{sec:real});
-\item simulations of $R$, $\rho$, the gain and the capacity needed for preempted KV on a production
-reasoning trace and best-of-$N$ math workloads over seven deployments, with a simulator validated
-against LLMServingSim and real vLLM (Section~\ref{sec:preempt});
+\item simulations of $R$, $\rho$, the gain and the tier capacity for preempted KV in reasoning
+serving over seven deployments, validated against LLMServingSim and vLLM (Section~\ref{sec:preempt});
 \item the conditions under which a tier for preempted KV would pay (Section~\ref{sec:pays}).
 \end{itemize}
 
@@ -117,13 +110,11 @@ best-of-$N$ batches, $R$ stays below 0.9, so the gain in our runs is bounded by 
 \textbf{Published gains.} Samsung's benchmark asks 2-token questions about 48K-token
 documents~\cite{samsung_cmmd}, so every miss recomputes 24,000 tokens per generated token and the
 gain is bounded by $c_r/c_l-1$ rather than by $R$. Tang et al.'s 30\% larger batch at the same
-time-to-first-token target with a CXL prefix-KV store~\cite{tang_cxl} is also a case of reused prefixes. A dynamical model of
-evict-and-restart finds throughput losses up to 50\% when identical lengths synchronize evictions,
-which heterogeneous lengths, such as heavy-tailed reasoning lengths, desynchronize~\cite{congestion}.
+time-to-first-token target with a CXL prefix-KV store~\cite{tang_cxl} is also a case of reused prefixes.
 
 \section{Test on Real vLLM}
 \label{sec:real}
-We test Eq.~\ref{eq:gain} with vLLM 0.31 and its native CPU tier on an RTX 4500 Ada, GPU cache fixed
+We test Eq.~\ref{eq:gain} with vLLM 0.31 and its native CPU tier~\cite{vllmblog} on an RTX 4500 Ada, GPU cache fixed
 at 32K tokens, with four models of three architectures: DeepSeek-R1-Distill-Qwen 1.5B and 7B
 (Qwen2), Llama-3.2-1B and Granite-3.1-1B-A400M (mixture of experts, 8 of 32 experts per token). Two
 benchmarks of 16 documents, 8 questions each: synthetic 4,096-token documents, and LongBench
@@ -248,21 +239,23 @@ prompt and output tokens per output token; $\rho$, from a short microbenchmark l
 and $c_l/c_r$, from the tier's bandwidth.
 
 \section{Related Work and Limitations}
-That decode costs far more per token than prefill is known (16.7 to 200 times at small
-batch~\cite{sarathi}) and underlies phase splitting~\cite{splitwise,distserve}. Prior work
+That a decoded token costs 16.7 to 200 times a prefilled one at small batch is
+known~\cite{sarathi} and underlies phase splitting~\cite{splitwise,distserve}. Prior work
 characterizes the memory wall of reasoning~\cite{kinetics,infscaling}, tiers decoding KV
 by sparse attention or token importance~\cite{oasiskv,notallthoughts}, manages memory for tree
 search~\cite{fasttts}, models preemption from length distributions~\cite{congestion}, measures
 preemption in RL rollouts~\cite{rollpacker}, and sets KV reservations under length
 uncertainty~\cite{robustkv}. Per-request choices between swapping and recomputing are weighed by
-InferCept and restore-or-recompute models~\cite{infercept,restore_recompute}, and measurements in
-vLLM locate the break-even prefix length~\cite{pykvcache}. EfficientAgent sizes a host tier for
-paused agents' KV and states qualitatively when offloading pays~\cite{efficientagent}. We add a
+InferCept and restore-or-recompute models~\cite{infercept,restore_recompute}, CacheFlow plans what to
+recompute and what to load to cut restore latency~\cite{cacheflow}, measurements in vLLM locate the
+break-even prefix length~\cite{pykvcache}, Meng et al.\ give the cached-to-new token ratio at which
+prefill becomes transfer-bound~\cite{mengoffload}, and Li et al.\ model the cloud cost of storing KV
+for reuse~\cite{licost}. We add a
 closed-form, workload-level model of the gain, its test on real vLLM, and measurements of its inputs
 for preempted KV in reasoning traffic.
 
 The step-time model is calibrated on profiles up to 4K tokens on H100 (16K on A100) and extrapolated
-physically beyond; MLA and MoE timings are not validated against measurements; the preemption
+with the roofline beyond; MLA and MoE timings are not validated against measurements; the preemption
 simulations do not model prompts shared across requests. The real-vLLM tests use 1B to 7B models on one GPU (Gemma-3's
 sliding-window layers did not fit the fixed GPU cache), and $c_d$ there is taken from the offloading run, so the test checks the recompute and load
 terms of Eq.~\ref{eq:gain}, not $c_d$. On the reasoning trace the simulator's LRU tier removes 99.7\% of the recomputed tokens, where

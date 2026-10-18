@@ -40,8 +40,9 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "results" / "reuse"
 D, L, Q, QLEN = 16, 4096, 8, 32
 SMALL_BLOCKS = 2048                             # 32K tokens: about half of the documents
-LONGBENCH = Path.home() / (".cache/huggingface/hub/datasets--zai-org--LongBench/snapshots/"
-                           "5e628be450b7e67fb7ae6e201bd6d8f7056f7672/longbench_extracted/data")
+LONGBENCH = Path(os.environ.get("LONGBENCH_DIR", Path.home() / (
+    ".cache/huggingface/hub/datasets--zai-org--LongBench/snapshots/"
+    "5e628be450b7e67fb7ae6e201bd6d8f7056f7672/longbench_extracted/data")))
 LB_TASKS = {"qasper": 4, "multifieldqa_en": 3, "2wikimqa": 3, "gov_report": 3, "lcc": 3}
 
 
