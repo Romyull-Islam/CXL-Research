@@ -373,7 +373,7 @@ def table_ssd():
 if __name__ == "__main__":
     table_mqsim()
     fig_wear()
-    fig_concept()
+    # fig_concept.pdf is drawn in PowerPoint: paper/fig_concept.js, paper/diagrams.sh
     fig_prov()
     fig_waf()
     fig_pool()
