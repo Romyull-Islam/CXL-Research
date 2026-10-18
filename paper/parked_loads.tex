@@ -5,8 +5,6 @@
 \usepackage{unicode-math}
 \setmathfont{texgyretermes-math.otf}
 \usepackage{graphicx}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta,decorations.pathreplacing}
 \usepackage{array}
 \usepackage{booktabs}
 \usepackage{cite}
@@ -63,40 +61,7 @@ in its naive design~\cite{tract_thesis}. On an FPGA multi-headed device a flushe
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[x=1cm,y=1cm,font=\scriptsize,>={Stealth[length=1.6mm]}]
-\def\D{1.3}\def\W{2.6}
-\foreach \ox/\ttl in {0/{(a) Polling}, 4.3/{(b) Parked load}} {
-  \node at (\ox+\D,0.75) {\footnotesize\textbf{\ttl}};
-  \foreach \x/\n in {0/waiter, \D/device, \W/writer} {
-    \node at (\ox+\x,0.35) {\n};
-    \draw[gray!60,dashed] (\ox+\x,0.2) -- (\ox+\x,-2.62);
-  }
-}
-% (a) polling
-\foreach \y in {-0.2,-0.85,-1.5} {
-  \draw[->] (0,\y) -- (\D,\y-0.22);
-  \draw[->,gray] (\D,\y-0.22) -- (0,\y-0.44);
-}
-\node[gray] at (0.35,-0.1) {poll};
-\node[gray,anchor=east] at (-0.05,-0.64) {old};
-\draw[->,very thick,red!70!black] (\W,-1.45) -- (\D,-1.8) node[pos=0.5,above,sloped] {write};
-\draw[->] (0,-2.15) -- (\D,-2.37);
-\draw[->,very thick,blue!70!black] (\D,-2.37) -- (0,-2.59) node[pos=0.5,below,sloped] {new};
-\draw[decorate,decoration={brace,amplitude=2pt,mirror}] (-0.1,-1.8) -- (-0.1,-2.59)
-  node[midway,left,align=right] {hand-\\off};
-\node[align=center] at (\D,-2.95) {one device read per poll};
-% (b) parked
-\begin{scope}[xshift=4.3cm]
-\draw[->] (0,-0.2) -- (\D,-0.42);
-\fill[orange!35] (\D-0.08,-0.42) rectangle (\D+0.08,-1.8);
-\node[align=left,anchor=west] at (\D+0.12,-0.8) {parked;\\credit\\freed};
-\draw[->,very thick,red!70!black] (\W,-1.45) -- (\D,-1.8) node[pos=0.5,above,sloped] {write};
-\draw[->,very thick,blue!70!black] (\D,-1.8) -- (0,-2.02) node[pos=0.5,below,sloped] {new};
-\draw[decorate,decoration={brace,amplitude=2pt,mirror}] (-0.1,-1.8) -- (-0.1,-2.02)
-  node[midway,left,align=right] {hand-\\off};
-\node[align=center] at (\D,-2.75) {answered within $\tau=\SI{25}{\micro\second}$,\\else ``not yet''};
-\end{scope}
-\end{tikzpicture}
+\includegraphics[width=\columnwidth]{fig_idea.pdf}
 \caption{A waiter on one host and a writer on another share a CXL device. (a) Polling: each poll is
 a device read; the waiter sees the write at its next poll. (b) Parked load: the device holds the read
 without holding a request credit and answers it when the write lands, or answers ``not yet'' within
