@@ -1,0 +1,48 @@
+{
+ "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+ "tp": 1,
+ "gpus": "1",
+ "config": "recompute",
+ "num_blocks": 14094,
+ "offload_gb": 32.0,
+ "gpu_name": "NVIDIA A100-SXM4-80GB, 81920 MiB",
+ "rows": [
+  {
+   "ctx": 2048,
+   "batch": 81,
+   "prefill_s": 18.898966312408447,
+   "prefill_decode_s": 25.398170471191406,
+   "c_pre": 0.00011392606042877392,
+   "step_s": 0.05077503249049187,
+   "c_dec": 0.0006268522529690354,
+   "rho": 5.50227270748944
+  },
+  {
+   "ctx": 8192,
+   "batch": 21,
+   "prefill_s": 22.517125606536865,
+   "prefill_decode_s": 28.463791370391846,
+   "c_pre": 0.0001308891694948432,
+   "step_s": 0.046458326280117035,
+   "c_dec": 0.0022123012514341446,
+   "rho": 16.90209556659541
+  },
+  {
+   "ctx": 16384,
+   "batch": 10,
+   "prefill_s": 25.014824628829956,
+   "prefill_decode_s": 31.415578365325928,
+   "c_pre": 0.00015267837297869847,
+   "step_s": 0.05000588856637478,
+   "c_dec": 0.005000588856637478,
+   "rho": 32.752437421737234
+  }
+ ],
+ "gpu_monitor": {
+  "n_samples": 21,
+  "foreign_pids": [
+   1551577
+  ],
+  "contended": true
+ }
+}

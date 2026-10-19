@@ -142,3 +142,12 @@ is at most 1.26 TB across eight nodes that together have 16 TB of DRAM.
 Reproduce: python analysis/gate2_saturation.py, then gate2_capacity, gate2_maxseqs, gate2_online,
 gate2_goodput, gate2_pool, gate2_sensitivity, gate2_fp8_tuned and first_order.py (16 cores, about
 an hour in total; each sweep keeps 12 workers at about 250 MB each).
+
+## Real A100 (2026-10-18)
+
+DeepSeek-R1-Distill-Llama-8B on one A100-SXM4-80GB, vLLM 0.31, 400 Bailian requests at once, GPU KV
+28,049 blocks (449K tokens), native CPU tier 32 GB (results/a100/run_DeepSeek-R1-Distill-Llama-8B_tp1_bailian.json).
+Recompute: 808 and 806 tok/s, 225 preemptions, R = 0.34. CPU tier: 806 and 809 tok/s, R = 0.12 and
+0.10 (66 to 71% of recomputed tokens removed). Gain -0.3% and +0.3%; the bound R/rho with rho 5.7 to
+28 (microbenchmark at 2K to 16K context) is 1.2 to 6%. A first rep 1 (-8.7%) overlapped another
+user's jobs on GPU 0 and was rerun on GPU 1 (analysis/rerun_rep.sh).

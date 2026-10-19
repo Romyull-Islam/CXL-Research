@@ -39,7 +39,32 @@ fixed 2,048-block GPU cache.
 - Measured gains 6 to 372% at R = 7 to 1,027; spread at most 2.2% (17% for 4-token answers).
 - With c_r from the standalone prefill microbenchmark the model over-predicts in all 24 cases:
   +4 to +12% on the dense models, +17 to +33% on the MoE model.
-- The error is in c_r: recompute in these runs shares steps with decoding. A mixed microbenchmark
+- (Superseded 2026-10-18, see the A100 section: the error is in c_l, not c_r.) First explanation:
+  recompute in these runs shares steps with decoding. A mixed microbenchmark
   (16 extra 4,096-token prefills added to 7 decoding requests; reuse_validate.py mixbench) gives c_r
   3 to 5% lower on the dense models and 12 to 14% lower on the MoE model; with it the error is
   -2 to +8% in 23 of 24 cases and +15% in one (MoE, synthetic, 64-token answers).
+
+## A100, three more models, and where the error lies (2026-10-18)
+
+A100-SXM4-80GB on dgxa100 (GPU 1 for the reuse runs), same setup and cache size (2,048 blocks):
+DeepSeek-R1-Distill-Llama-8B, DeepSeek-R1-Distill-Qwen-14B and Qwen3-30B-A3B (MoE, 8 of 128
+experts). Runner analysis/run_a100.sh; results/reuse_a100/ (report: REUSE_DIR=results/reuse_a100
+python analysis/reuse_validate.py report). Pinned host-to-GPU bandwidth 21.1 to 26.2 GB/s.
+
+- Measured gains 10 to 321%; spread at most 2.6% (14% for 4-token answers). With c_l from the
+  bandwidth the model over-predicts in all 18 cases: +1 to +10% dense, +12 to +31% MoE.
+- One LongBench rep of Qwen3 (512-token answers) ran 1.3 to 1.8 times slower in all three
+  configurations while another job shared the node; it was rerun (analysis/rerun_rep.sh) and matched
+  rep 0 within 0.3%. The disturbed values are in runs.json.bak on the server only.
+- The mixed microbenchmark raises c_r for Qwen3 MoE by 6 to 8% (52.1 vs 48.4 to 49.0 us), making the
+  error worse (+21 to +42%). So the mixed c_r does not explain the gap.
+- Decomposition at 4-token answers, where decoding is negligible and the recompute, offload and ideal
+  runs compute the same tokens: (T_recompute - T_ideal) / X is within -7 to +2% of the
+  microbenchmark c_r on all seven models, while (T_offload - T_ideal) / X is 1.7 to 5.6 times the
+  bandwidth c_l (A100 1.7 to 2.2, RTX 4500 1.8 to 5.6). The error is in the load term.
+- With c_l measured that way once per model and benchmark (the 4-token run) and applied to the 64-
+  and 512-token runs, the error is -5 to +4% on the five dense models and 0 to +18% on the two MoE
+  models (summary.csv column error_insitu).
+- Microbenchmark at full cache (prefill vs decode): rho 6 to 33 for 8B and 14B, 13 to 42 for Qwen3;
+  prefill reaches 82 to 83% of A100 peak BF16 linear-layer FLOP/s at 2K tokens, 61 to 62% at 16K.

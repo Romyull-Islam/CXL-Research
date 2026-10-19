@@ -1,0 +1,48 @@
+{
+ "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+ "tp": 1,
+ "gpus": "0",
+ "config": "recompute",
+ "num_blocks": 27920,
+ "offload_gb": 32.0,
+ "gpu_name": "NVIDIA A100-SXM4-80GB, 81920 MiB",
+ "rows": [
+  {
+   "ctx": 2048,
+   "batch": 161,
+   "prefill_s": 20.727761030197144,
+   "prefill_decode_s": 28.151474475860596,
+   "c_pre": 6.28632115871177e-05,
+   "step_s": 0.05799776129424572,
+   "c_dec": 0.000360234542200284,
+   "rho": 5.730450817026113
+  },
+  {
+   "ctx": 8192,
+   "batch": 42,
+   "prefill_s": 24.7945659160614,
+   "prefill_decode_s": 31.5469810962677,
+   "c_pre": 7.206381927798724e-05,
+   "step_s": 0.05275324359536171,
+   "c_dec": 0.001256029609413374,
+   "rho": 17.42940662870256
+  },
+  {
+   "ctx": 16384,
+   "batch": 21,
+   "prefill_s": 28.847407817840576,
+   "prefill_decode_s": 35.17672610282898,
+   "c_pre": 8.384314493187481e-05,
+   "step_s": 0.0494477991014719,
+   "c_dec": 0.0023546571000700907,
+   "rho": 28.084074159948596
+  }
+ ],
+ "gpu_monitor": {
+  "n_samples": 21,
+  "foreign_pids": [
+   1551577
+  ],
+  "contended": true
+ }
+}

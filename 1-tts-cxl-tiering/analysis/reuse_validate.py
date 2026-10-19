@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from a100_validate import ENV, GpuMonitor, _count_scheduled, _generate, _llm, _num_blocks  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "results" / "reuse"
+OUT = Path(os.environ.get("REUSE_DIR", ROOT / "results" / "reuse"))   # results/reuse_a100 for the A100 runs
 D, L, Q, QLEN = 16, 4096, 8, 32
 SMALL_BLOCKS = 2048                             # 32K tokens: about half of the documents
 LONGBENCH = Path(os.environ.get("LONGBENCH_DIR", Path.home() / (
@@ -104,7 +104,7 @@ def h2d_bandwidth():
 
 def one(a):
     box = _count_scheduled()
-    mon = GpuMonitor("0")
+    mon = GpuMonitor(os.environ.get("CUDA_VISIBLE_DEVICES", "0"))
     mon.start()
     prompts, outs, lens = workload(a.out, a.bench, a.model)
     kvb = kv_bytes_per_token(a.model)
@@ -160,7 +160,7 @@ def run(a):
     for rep in range(a.reps):
         for out in a.outs:
             for cfg in ("ideal", "recompute", "cpu_offload"):
-                env = dict(os.environ, CUDA_VISIBLE_DEVICES="0", **ENV)
+                env = dict(os.environ, CUDA_VISIBLE_DEVICES=os.environ.get("GPU", "0"), **ENV)   # GPU=<index> to pick one
                 cmd = [sys.executable, __file__, "_one", "--config", cfg, "--out", str(out),
                        "--rep", str(rep), "--first-out", str(a.outs[0]), "--model", a.model,
                        "--mem-util", str(a.mem_util), "--offload-gb", str(a.offload_gb), "--bench", a.bench]
@@ -188,6 +188,7 @@ def recompute_cost(model, lens):
 
 
 def report():
+    import numpy as np
     import pandas as pd
     rows = []
     for path in sorted(OUT.glob("*/*/runs.json")):
@@ -203,9 +204,13 @@ def report():
         mb = OUT / short(meta["model"]) / "mixbench.json"
         c_m = json.loads(mb.read_text())["c_r_mixed"] if mb.exists() else None
         for out, g in df.groupby("out"):
-            m = g.groupby("config").agg(wall=("wall_s", "median"), sched=("scheduled_tokens", "median"),
-                                        gen=("gen_tokens", "median"), n=("wall_s", "size"),
-                                        spread=("wall_s", lambda s: (s.max() - s.min()) / s.median()))
+            if not {"ideal", "recompute", "cpu_offload"} <= set(g.config):
+                continue                                   # this answer length is still running
+            m = pd.DataFrame({c: dict(wall=x.wall_s.median(), sched=x.scheduled_tokens.median(),
+                                      gen=x.gen_tokens.median(), n=len(x),
+                                      spread=(x.wall_s.max() - x.wall_s.min()) / x.wall_s.median())
+                              for c, x in g.groupby("config")}).T   # explicit: named aggregations
+                                                                    # misbehave in newer pandas
             Tr, To = m.loc["recompute", "wall"], m.loc["cpu_offload", "wall"]
             X = m.loc["recompute", "sched"] - m.loc["cpu_offload", "sched"]   # recomputed instead of loaded
             G = m.loc["cpu_offload", "gen"]
@@ -216,12 +221,19 @@ def report():
                              gain_measured=Tr / To - 1, gain_predicted=R * (c_r - c_l) / (c_d + R * c_l),
                              c_r_mixed_us=c_m * 1e6 if c_m else None,
                              gain_predicted_mixed=R * (c_m - c_l) / (c_d + R * c_l) if c_m else None,
-                             T_recompute=Tr, T_offload=To, T_ideal=m.loc["ideal", "wall"],
+                             T_recompute=Tr, T_offload=To, T_ideal=m.loc["ideal", "wall"], X=X,
                              offload_extra_vs_ideal=(m.loc["cpu_offload", "sched"] - m.loc["ideal", "sched"]),
                              max_spread=m.spread.max(), reps=int(m.n.min())))
     rep = pd.DataFrame(rows)
     rep["error"] = rep.gain_predicted / rep.gain_measured - 1
     rep["error_mixed"] = rep.gain_predicted_mixed / rep.gain_measured - 1
+    # Load cost in place: the tier's time beyond the ideal cache per loaded token in the shortest-answer
+    # run (decoding negligible, same tokens computed), applied to the longer answers.
+    rep["c_l_insitu_us"] = (rep.T_offload - rep.T_ideal) / rep.X * 1e6
+    first = rep.loc[rep.groupby(["model", "bench"]).out.idxmin()].set_index(["model", "bench"]).c_l_insitu_us
+    cl = np.array([first.loc[(m, b)] for m, b in zip(rep.model, rep.bench)]) * 1e-6
+    rep["c_r_insitu_us"] = (rep.T_recompute - rep.T_ideal) / rep.X * 1e6
+    rep["error_insitu"] = rep.X * (rep.c_r_us * 1e-6 - cl) / rep.T_offload / rep.gain_measured - 1
     rep.to_csv(OUT / "summary.csv", index=False)
     print(rep.round(3).to_string(index=False))
 

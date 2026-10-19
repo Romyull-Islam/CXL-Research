@@ -607,8 +607,10 @@ is modeled and measured in~\cite{restore_recompute,pykvcache}.
 \textbf{Scaling.} Modeling a node as $S$ interleaved copies of a trace assumes independent users;
 real routing can concentrate a conversation on one node, which shortens reuse distances and favors
 the cache. The traces cover one to two hours, so daily load cycles enter only through the two prefill
-duties (30\% and 100\%). $S$ assumes 50\% GPU utilization and counts linear-layer FLOPs only; a
-higher utilization raises $S$ and with it the per-node write rate.
+duties (30\% and 100\%). $S$ assumes 50\% GPU utilization and counts linear-layer FLOPs only. On an
+A100 in vLLM, prefill of 8B and 14B dense models reached 82 to 83\% of peak BF16 linear-layer FLOP/s
+with 2K-token prompts and 61 to 62\% with 16K-token prompts, so 50\% is conservative: a higher
+utilization raises $S$ and the per-node write rate, which shortens the lifetimes we report.
 
 \textbf{Write amplification.} Our FTL matches closed forms and MQSim but not a specific drive; a
 quarter of the 2\,TB cases and a tenth of the pseudo-SLC cases are too short to reach steady state

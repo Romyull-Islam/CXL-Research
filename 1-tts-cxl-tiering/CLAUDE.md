@@ -18,11 +18,12 @@ findings/01-tts-kv-skew.md.
 ## Next step
 
 Recommendation: not a CXL architecture paper; an IEEE letter (paper/preempted_kv.tex, 4 pages, "When
-Does a KV Memory Tier Pay? A First-Order Model for LLM Serving"). Model: gain = R (c_r - c_l) / (c_d + R c_l). Tested on real vLLM (findings/04): four models of three architectures
-(Qwen2 1.5B/7B, Llama 1B, Granite MoE), synthetic and LongBench documents; gains 6 to 372%, predicted
-within -2 to +15% with c_r timed alongside decoding (+4 to +33% with the standalone microbenchmark). Applied to
-preempted KV: 2 to 10% (simulator validated against LLMServingSim and real vLLM).
-An A100 run (README, analysis/a100_validate.py) would add larger models and is optional.
+Does a KV Memory Tier Pay? A First-Order Model for LLM Serving"). Model: gain = R (c_r - c_l) / (c_d + R c_l). Tested on real vLLM (findings/04): seven models of four
+architectures (Qwen2 1.5B/7B/14B, Llama 1B/8B, Granite MoE, Qwen3-30B-A3B MoE) on an RTX 4500 Ada and
+an A100; gains 6 to 372%; with c_l from the link bandwidth the model over-predicts by 1 to 12% (dense)
+and 12 to 33% (MoE). The error is in the load term (the tier costs 1.7 to 5.6x bytes/bandwidth); with
+c_l measured in the 4-token run, -5 to +4% (dense) and 0 to +18% (MoE). Applied to preempted KV: 2 to
+10% simulated; real vLLM -4 to 0% (0.5B on the RTX 4500, 8B on the A100: -0.3 and +0.3%).
 If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM
 nodes with FP8 KV, where vLLM's LRU offload tier would need 2 to 4x HBM KV for a 5 to 8% gain.
 

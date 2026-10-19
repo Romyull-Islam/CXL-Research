@@ -99,8 +99,9 @@ target.
 4. Conference version (placement mechanism plus vLLM/SGLang validation): not pursued, since gate 2
    failed. Instead, a letter (paper/preempted_kv.tex) gives the first-order model of a KV tier's
    gain, R (c_r - c_l) / (c_d + R c_l), tests it on real vLLM where recomputation is large
-   (findings/04: predicted within 6 to 11% for gains of 13 to 342%), and applies it to preempted KV; an A100 run (README) would add larger models but is not
-   required. The only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with
+   (findings/04: seven models of four architectures on an RTX 4500 Ada and an A100, gains of 6 to
+   372% predicted within -5 to +4% for dense models and 0 to +18% for MoE with the load cost measured
+   in place), and applies it to preempted KV (on a real A100: -0.3 and +0.3%). The only regime with a CXL capacity case is offline best-of-N on large-HBM nodes with
    an FP8 KV cache, worth 5 to 8% over tuned admission.
 
 ## Data and how to run

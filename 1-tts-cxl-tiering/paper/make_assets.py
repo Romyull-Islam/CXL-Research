@@ -20,6 +20,19 @@ DEP = ["70B-8xH100", "70B-8xH200", "70B-8xB200", "QwQ32B-2xH100", "QwQ32B-4xH100
 WCOL = {"bailian": "#999999", "bo1": "#0072B2", "bo16": "#E69F00", "bo64": "#D55E00"}   # Okabe-Ito
 LAB = ["70B\nH100", "70B\nH200", "70B\nB200", "QwQ\n2×H100", "QwQ\n4×H100", "Q3-235B\nH100", "R1\nH200"]
 WL = {"bailian": "Bailian", "bo1": "best-of-1", "bo16": "best-of-16", "bo64": "best-of-64"}
+# real-vLLM reuse tests: model, architecture, short name
+NAMES = {"DeepSeek-R1-Distill-Qwen-1.5B": ("Qwen2", "Qwen2 1.5B"), "DeepSeek-R1-Distill-Qwen-7B": ("Qwen2", "Qwen2 7B"),
+         "Llama-3.2-1B-Instruct": ("Llama", "Llama 1B"), "granite-3.1-1b-a400m-instruct": ("MoE", "Granite MoE 1B"),
+         "DeepSeek-R1-Distill-Llama-8B": ("Llama", "Llama 8B"), "DeepSeek-R1-Distill-Qwen-14B": ("Qwen2", "Qwen2 14B"),
+         "Qwen3-30B-A3B": ("MoE", "Qwen3 MoE 30B")}
+GCOL = {"RTX 4500 Ada": "#CC79A7", "A100": "#009E73"}   # Okabe-Ito
+
+
+def real():
+    """Real-vLLM reuse summaries of both GPUs, one row per model, benchmark and answer length."""
+    a = pd.read_csv(R / "reuse" / "summary.csv").assign(gpu="RTX 4500 Ada")
+    b = pd.read_csv(R / "reuse_a100" / "summary.csv").assign(gpu="A100")
+    return pd.concat([a, b], ignore_index=True)
 
 
 def gains():
@@ -79,18 +92,20 @@ def design():
     r = d[d.policy == "recompute"].copy()
     s = d[d.policy == "swap"].set_index(["deploy", "wname", "kernel"]).throughput
     r["gain"] = (s.loc[list(zip(r.deploy, r.wname, r.kernel))].values / r.throughput.values - 1) * 100
-    q = pd.read_csv(R / "reuse" / "summary.csv")
-    fig, ax = plt.subplots(figsize=(3.5, 1.75))
+    q = real()
+    fig, ax = plt.subplots(figsize=(3.5, 1.6))
     rr = np.logspace(-1, 3.5, 200)
     for rho, c in ((5, "0.15"), (30, "0.45"), (300, "0.7")):
-        for k, ls in ((1 / 27, "-"), (1 / 5, "--")):
+        for k, ls in ((1 / 30, "-"), (1 / 5, "--")):
             g = rr * (1 - k) / (rho + rr * k) * 100
             ax.plot(rr, g, color=c, ls=ls, lw=0.9)
-        ax.text(2.0, 2.0 * (1 - 1 / 27) / (rho + 2.0 / 27) * 100 * 1.6, rf"$\rho={rho}$", fontsize=6.5,
+        ax.text(2.0, 2.0 * (1 - 1 / 30) / (rho + 2.0 / 30) * 100 * 1.6, rf"$\rho={rho}$", fontsize=6.5,
                 color=c, ha="center", va="bottom")
-    ax.scatter(r.recomputed_per_out, r.gain, s=8, color="#0072B2", zorder=3, label="preempted KV, simulated")
-    ax.scatter(q.R, q.gain_measured * 100, s=14, marker="D", color="#CC79A7", zorder=3,
-               label="reused KV, real vLLM")
+    ax.scatter(r.recomputed_per_out, r.gain, s=8, color="#0072B2", zorder=3, label="preempted, simulated")
+    for gpu, mk in (("RTX 4500 Ada", "D"), ("A100", "s")):
+        x = q[q.gpu == gpu]
+        ax.scatter(x.R, x.gain_measured * 100, s=14, marker=mk, color=GCOL[gpu], zorder=3,
+                   label=f"reused, vLLM, {gpu}")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(0.1, 3000)
@@ -116,19 +131,19 @@ def teaser():
     s = d[d.policy == "swap"].set_index(["deploy", "wname", "kernel"]).throughput
     r["gain"] = (s.loc[list(zip(r.deploy, r.wname, r.kernel))].values / r.throughput.values - 1) * 100
     r["model"] = r.recomputed_per_out / r.rho * 100
-    q = pd.read_csv(R / "reuse" / "summary.csv")
-    fig, ax = plt.subplots(figsize=(3.5, 1.75))
+    q = real()
+    q["arch"] = q.model.map(lambda m: NAMES[m][0])
+    fig, ax = plt.subplots(figsize=(3.5, 1.6))
     lim = (1, 600)
     ax.plot(lim, lim, color="k", lw=0.5)
     ax.fill_between(lim, [v / 1.2 for v in lim], [v * 1.2 for v in lim], color="0.85", lw=0)
     ax.scatter(r.model, r.gain, s=7, color="0.45", label="preempted KV, simulated (56 runs)", zorder=3)
-    marks = {"DeepSeek-R1-Distill-Qwen-1.5B": ("D", "Qwen2 1.5B"), "DeepSeek-R1-Distill-Qwen-7B": ("s", "Qwen2 7B"),
-             "Llama-3.2-1B-Instruct": ("^", "Llama 1B"), "granite-3.1-1b-a400m-instruct": ("v", "MoE 1B")}
-    for m, (mk, lab) in marks.items():
-        x = q[q.model == m]
-        ax.scatter(x.gain_predicted_mixed * 100, x.gain_measured * 100, s=16, marker=mk, color="#CC79A7",
-                   label=f"reused KV, vLLM, {lab}", zorder=4, linewidths=0.6,
-                   facecolors=["#CC79A7" if b == "docqa" else "white" for b in x.bench])
+    for gpu in GCOL:
+        x = q[q.gpu == gpu]
+        ax.scatter(x.gain_predicted * 100, x.gain_measured * 100, s=14, marker="D" if gpu == "A100" else "o",
+                   color=GCOL[gpu], zorder=4, linewidths=0.6,
+                   facecolors=[GCOL[gpu] if a != "MoE" else "white" for a in x.arch],
+                   label=f"reused KV, vLLM, {gpu} ({x.model.nunique()} models)")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(*lim)
@@ -141,7 +156,7 @@ def teaser():
     ax.set_ylabel("observed gain (%)")
     ax.text(1.3, 300, "line: predicted = observed;\nband: within 20%", fontsize=6, va="top")
     ax.legend(loc="lower right", fontsize=6.5, handletextpad=0.2, borderaxespad=0.2)
-    ax.text(1.3, 120, "filled: synthetic documents\nhollow: LongBench", fontsize=6.5, va="top")
+    ax.text(1.3, 120, "filled: dense\nhollow: mixture of experts", fontsize=6.5, va="top")
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
     fig.savefig(HERE / "fig_teaser.pdf", bbox_inches="tight", pad_inches=0.02)
@@ -173,25 +188,31 @@ def capacity():
 
 
 def reuse_table():
-    """Table I: real vLLM, one row per model and benchmark, from results/reuse/summary.csv."""
-    d = pd.read_csv(R / "reuse" / "summary.csv")
-    names = {"DeepSeek-R1-Distill-Qwen-1.5B": "Qwen2 1.5B", "DeepSeek-R1-Distill-Qwen-7B": "Qwen2 7B",
-             "Llama-3.2-1B-Instruct": "Llama 1B", "granite-3.1-1b-a400m-instruct": "MoE 1B"}
+    """Table II: real vLLM, one row per model over both benchmarks, from the two GPUs' summaries."""
+    d = real()
+
+    def pct(x):
+        v = int(round(x * 100))
+        return f"{v:+d}" if v else "0"
+
+    def rng(v, f=pct, sep=" to "):
+        lo, hi = f(v.min()), f(v.max())
+        return lo if lo == hi else f"{lo}{sep}{hi}"
     lines = []
-    for m in names:
-        for b in ("docqa", "longbench"):
-            g = d[(d.model == m) & (d.bench == b)].sort_values("out")
-            gains = " / ".join(f"{v * 100:.0f}" for v in g.gain_measured)
-            def pct(x):
-                v = int(round(x * 100))
-                return f"{v:+d}" if v else "0"
-            e1 = f"{pct(g.error.min())}..{pct(g.error.max())}"
-            e2 = f"{pct(g.error_mixed.min())}..{pct(g.error_mixed.max())}"
-            lines.append(f"{names[m]} & {'synth.' if b == 'docqa' else 'LongB.'} & {gains} & "
-                         f"{e1.replace('..', ' to ')} & {e2.replace('..', ' to ')} \\\\")
-    body = "\n".join(lines).replace("-", "$-$")
-    head = ("\\begin{tabular}{llrrr}\n\\toprule\n & & measured gain (\\%) & \\multicolumn{2}{c}{error (\\%), $c_r$ timed} "
-            "\\\\\nmodel & bench & 4 / 64 / 512 tokens & alone & with decoding \\\\\n\\midrule\n")
+    for gpu in GCOL:
+        if lines:
+            lines.append("\\midrule")
+        for m, (_, name) in NAMES.items():
+            g = d[(d.gpu == gpu) & (d.model == m)]
+            if g.empty:
+                continue
+            gains = " / ".join(rng(g[g.out == o].gain_measured, lambda v: f"{v * 100:.0f}", "--")
+                               for o in sorted(g.out.unique()))
+            lines.append(f"{name} & {gains} & {rng(g.error)} & "
+                         f"{rng(g[g.out > g.out.min()].error_insitu)} \\\\")
+    body = "\n".join(x.replace("--", "\x00").replace("-", "$-$").replace("\x00", "--") for x in lines)
+    head = ("\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n & measured gain (\\%) & \\multicolumn{2}{c}{error (\\%), $c_l$ from} "
+            "\\\\\nmodel & 4 / 64 / 512 tokens & bandwidth & 4-token run \\\\\n\\midrule\n")
     (HERE / "tab_reuse.tex").write_text(head + body + "\n\\bottomrule\n\\end{tabular}\n")
 
 
