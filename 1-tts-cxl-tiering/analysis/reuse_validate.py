@@ -89,17 +89,23 @@ def kv_bytes_per_token(model):
     return 2 * c.num_hidden_layers * c.num_key_value_heads * head * 2      # K and V, BF16
 
 
-def h2d_bandwidth():
+def h2d_bandwidth(ndev=1):
+    """Pinned host-to-GPU copy rate summed over ndev GPUs copying at once (with tensor parallelism
+    each GPU loads its share of the KV over its own link)."""
     import torch
-    x = torch.empty(1 << 30, dtype=torch.uint8).pin_memory()
-    y = torch.empty_like(x, device="cuda")
-    y.copy_(x, non_blocking=True)
-    torch.cuda.synchronize()
+    xs = [torch.empty(1 << 30, dtype=torch.uint8).pin_memory() for _ in range(ndev)]
+    ys = [torch.empty_like(x, device=f"cuda:{i}") for i, x in enumerate(xs)]
+
+    def copy():
+        for x, y in zip(xs, ys):
+            y.copy_(x, non_blocking=True)
+        for i in range(ndev):
+            torch.cuda.synchronize(i)
+    copy()
     t0 = time.time()
     for _ in range(5):
-        y.copy_(x, non_blocking=True)
-    torch.cuda.synchronize()
-    return 5 * x.numel() / (time.time() - t0)
+        copy()
+    return 5 * ndev * xs[0].numel() / (time.time() - t0)
 
 
 def one(a):
@@ -119,11 +125,11 @@ def one(a):
     wall, gen = _generate(llm, prompts, outs)
     mon.stop = True
     res = dict(config=a.config, out=a.out, rep=a.rep, wall_s=wall, gen_tokens=gen, bench=a.bench,
-               scheduled_tokens=box[0], num_blocks=_num_blocks(llm), model=a.model, doc_lens=lens,
+               scheduled_tokens=box[0], num_blocks=_num_blocks(llm), model=a.model, doc_lens=lens, tp=a.tp,
                offload_gb=offload_gb if a.config == "cpu_offload" else 0,
                gpu_util=[s["util"] for s in mon.samples])
     if a.config == "ideal" and a.out == a.first_out and a.rep == 0:
-        res.update(h2d_Bps=h2d_bandwidth(), kv_bytes_per_token=kvb)
+        res.update(h2d_Bps=h2d_bandwidth(a.tp), kv_bytes_per_token=kvb)
     print("RESULT " + json.dumps(res), flush=True)
 
 
@@ -163,7 +169,8 @@ def run(a):
                 env = dict(os.environ, CUDA_VISIBLE_DEVICES=os.environ.get("GPU", "0"), **ENV)   # GPU=<index> to pick one
                 cmd = [sys.executable, __file__, "_one", "--config", cfg, "--out", str(out),
                        "--rep", str(rep), "--first-out", str(a.outs[0]), "--model", a.model,
-                       "--mem-util", str(a.mem_util), "--offload-gb", str(a.offload_gb), "--bench", a.bench]
+                       "--mem-util", str(a.mem_util), "--offload-gb", str(a.offload_gb), "--bench", a.bench,
+                       "--tp", str(a.tp)]
                 r = subprocess.run(cmd, capture_output=True, text=True, env=env)
                 line = [x for x in r.stdout.splitlines() if x.startswith("RESULT ")]
                 if not line:
@@ -176,11 +183,11 @@ def run(a):
                       f"  computed {x['scheduled_tokens']}", flush=True)
 
 
-def recompute_cost(model, lens):
+def recompute_cost(model, lens, tp=1):
     """Recompute time per token from the prefill microbenchmark on this GPU, interpolated in log2 of
     the context between the measured contexts at each document length and weighted by length."""
     import numpy as np
-    path = ROOT / "results" / "a100" / f"micro_{short(model)}_tp1.json"
+    path = ROOT / "results" / "a100" / f"micro_{short(model)}_tp{tp}.json"
     rows = sorted(json.loads(path.read_text())["rows"], key=lambda r: r["ctx"])
     x = np.log2([r["ctx"] for r in rows])
     c = np.interp(np.log2(lens), x, [r["c_pre"] for r in rows])
@@ -200,7 +207,7 @@ def report():
         meta = next(r for r in runs if "h2d_Bps" in r)
         lens = meta.get("doc_lens") or [L] * D
         c_l = meta["kv_bytes_per_token"] / meta["h2d_Bps"]
-        c_r = recompute_cost(meta["model"], lens)
+        c_r = recompute_cost(meta["model"], lens, meta.get("tp", 1))
         mb = OUT / short(meta["model"]) / "mixbench.json"
         c_m = json.loads(mb.read_text())["c_r_mixed"] if mb.exists() else None
         for out, g in df.groupby("out"):
@@ -251,8 +258,9 @@ def main():
     ap.add_argument("--out", type=int, default=4)
     ap.add_argument("--rep", type=int, default=0)
     ap.add_argument("--first-out", type=int, default=4)
+    ap.add_argument("--tp", type=int, default=1, help="tensor parallel GPUs (GPU=0,1 for 2)")
     a = ap.parse_args()
-    a.tp, a.kv_blocks = 1, 0
+    a.kv_blocks = 0
     if a.mode == "_one":
         one(a)
     elif a.mode == "run":

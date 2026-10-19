@@ -1,0 +1,19 @@
+# Model weights, checkpoints and download caches never go to GitHub
+*.safetensors
+*.gguf
+*.ggml
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.msgpack
+*.tflite
+hf/
+.cache/
+huggingface/
+models/
+checkpoints/
+venv/
+.venv/
