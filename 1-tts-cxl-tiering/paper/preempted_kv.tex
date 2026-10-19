@@ -25,10 +25,10 @@ USA (e-mail: mislam22@students.kennesaw.edu).}}% department to be added
 KV-cache tiers in host memory, SSD and CXL now ship in vLLM, LMCache and NVIDIA Dynamo, yet
 reported effects range from none to 5.8$\times$. We give a first-order model of what a tier is
 worth: its gain grows with the tokens a workload recomputes per token it generates, $R$, and
-saturates at the ratio of recompute to load cost. On real vLLM with its CPU tier, seven dense and
-mixture-of-experts models of 1B to 30B parameters on two GPUs, it predicts measured gains of 6\% to
-372\% to within $-5$ to $+4\%$ for dense models and 0 to $+18\%$ for mixtures of experts once the
-tier's load cost is measured in place. We then apply it to preempted requests, 30 to
+saturates at the ratio of recompute to load cost. On real vLLM with its CPU tier, eight dense and
+mixture-of-experts models of 1B to 32B parameters on two GPU types, it predicts measured gains of 6\%
+to 372\% to within $-8$ to $+4\%$ for dense models and 0 to $+18\%$ for mixtures of experts once
+the tier's load cost is measured in place. We then apply it to preempted requests, 30 to
 99\% of requests in simulated saturated reasoning serving. In seven simulated deployments a decoded token
 costs 4 to 30 recomputed ones and first-come-first-served preemption keeps $R$ below 0.9, so a tier
 for preempted KV adds only 2 to 10\% to saturation throughput, nothing to goodput at usable latency
@@ -75,7 +75,7 @@ decoded token's cost in recomputed tokens, is 4 to 30 in the deployments we simu
 This letter contributes:
 \begin{itemize}
 \item a first-order model of a KV tier's throughput gain (Section~\ref{sec:model});
-\item its test on real vLLM with seven models of four architectures on two GPUs and two benchmarks,
+\item its test on real vLLM with eight models of four architectures on two GPU types and two benchmarks,
 from $R=7$ to 1,027 (Section~\ref{sec:real});
 \item simulations of $R$, $\rho$, the gain and the tier capacity for preempted KV in reasoning
 serving over seven deployments, validated against LLMServingSim and vLLM (Section~\ref{sec:preempt});
@@ -118,13 +118,13 @@ preempted KV (simulated, $R<0.9$) and reused KV (real vLLM, $R=7$ to 1,027).}
  & reuse & preemption & preemption \\
  & real vLLM & simulated & real vLLM \\
 \midrule
-models & 1B to 30B (7) & 32B to 671B (4) & 0.5B to 8B (3) \\
+models & 1B to 32B (8) & 32B to 671B (4) & 0.5B to 32B (4) \\
 GPUs & RTX 4500, A100 & H100, H200, B200 & RTX 4500, A100 \\
-$R$ & 7 to 1,027 & 0.38 to 0.89 & 0.34, 0.43 \\
-$\rho$ & 29 to 309 & 4.4 to 30 & 5.7 to 128 \\
-$c_r$ (\si{\micro\second}) & 16 to 129 & 21 to 83 & 30 to 84 \\
-$c_l$ & 1.2 to \SI{7.5}{\micro\second} & 50\,GB/s per GPU & 1.2 to \SI{5.1}{\micro\second} \\
-gain & 6 to 372\% & 2 to 10\% & $-4$ to 0\% \\
+$R$ & 7 to 1,027 & 0.38 to 0.89 & 0.34 to 0.43 \\
+$\rho$ & 29 to 309 & 4.4 to 30 & 4.0 to 128 \\
+$c_r$ (\si{\micro\second}) & 16 to 158 & 21 to 83 & 30 to 183 \\
+$c_l$ & 1.2 to \SI{10.1}{\micro\second} & 50\,GB/s per GPU & 1.2 to \SI{10.1}{\micro\second} \\
+gain & 6 to 372\% & 2 to 10\% & $-4$ to $+2$\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -138,17 +138,16 @@ $P$ parameters plus attention, executed compute-bound. For a 70B model on 8 H100
 its tokens are still in the GPU prefix cache. Even with 90\% of requests preempted, 4 to 9 times
 each in best-of-$N$ batches, $R$ stays below 0.9, so the gain is bounded by $0.9/\rho$.
 
-\textbf{Published gains.} Samsung's benchmark asks 2-token questions about 48K-token
-documents~\cite{samsung_cmmd}, so every miss recomputes 24,000 tokens per generated token and the
-gain is bounded by $c_r/c_l-1$ rather than by $R$.
+\textbf{Published gains.} Samsung's 2-token questions about 48K-token documents~\cite{samsung_cmmd}
+give $R=24{,}000$ per miss, so $c_r/c_l-1$, not $R$, bounds the gain.
 
 \section{Test on Real vLLM}
 \label{sec:real}
 We test Eq.~\ref{eq:gain} with vLLM 0.31 and its native CPU tier~\cite{vllmblog}, GPU cache fixed
-at 32K tokens, with seven models of four architectures. On an RTX 4500 Ada: DeepSeek-R1-Distill-Qwen
+at 32K tokens, with eight models of four architectures. On an RTX 4500 Ada: DeepSeek-R1-Distill-Qwen
 1.5B and 7B (Qwen2), Llama-3.2-1B and Granite-3.1-1B-A400M (mixture of experts, 8 of 32 experts per
-token); on an A100-SXM4-80GB: DeepSeek-R1-Distill-Llama-8B, DeepSeek-R1-Distill-Qwen-14B and
-Qwen3-30B-A3B (8 of 128 experts). Two
+token); on A100-SXM4-80GB GPUs: DeepSeek-R1-Distill-Llama-8B, DeepSeek-R1-Distill-Qwen-14B,
+Qwen3-30B-A3B (8 of 128 experts) and QwQ-32B (tensor parallel over two GPUs). Two
 benchmarks of 16 documents, 8 questions each: synthetic 4,096-token documents, and LongBench
 documents of 2,048 to 6,144 tokens from five tasks with their real questions. All requests arrive at
 once in round-robin order, so a document's KV leaves the GPU before its next question; answers of 4,
@@ -160,22 +159,21 @@ host-to-GPU bandwidth; $c_d$ comes from the offloading run, so this test checks 
 terms of Eq.~\ref{eq:gain}, not $c_d$.
 
 Over two or three repetitions (spread at most 2.6\%, 17\% for 4-token answers), the model with
-$c_l$ from the bandwidth over-predicts in all 42 cases, by 1 to 12\% on the dense models and 12 to
-33\% on the mixtures of experts (Table~\ref{tab:reuse}). The 4-token runs locate the error: they
+$c_l$ from the bandwidth errs by $-1$ to $+12\%$ on the dense models and $+12$ to $+33\%$ on the
+mixtures of experts (Table~\ref{tab:reuse}), over-predicting in 47 of 48 cases. The 4-token runs locate the error: they
 compute the same tokens as an ideal cache that holds every document and decoding is negligible, so
 their extra time over it is recomputation or loading alone. Recomputation there is within $-7$
-to $+2\%$ of the microbenchmark's $c_r$, but loading takes 1.7 to 5.6 times the KV bytes over the bandwidth. With
+to $+4\%$ of the microbenchmark's $c_r$, but loading takes 1.7 to 5.6 times the KV bytes over the bandwidth. With
 $c_l$ measured once per model and benchmark in this way, the model predicts the 64- and 512-token
-runs to within $-5$ to $+4\%$ on the dense models and 0 to $+18\%$ on the mixtures of experts.
-$\rho$ is 29 to 309 because $c_d$ includes each document's first prefill, spread over 4 to 512
-answer tokens, and the GPU cache holds at most 7 requests.
+runs to within $-8$ to $+4\%$ on the dense models and 0 to $+18\%$ on the mixtures of experts.
+$\rho$ is 29 to 309 because $c_d$ includes each document's first prefill.
 
 \begin{table}[t]
 \centering
 \caption{Real vLLM: gain of the CPU tier over recomputation for answers of 4, 64 and 512 tokens
 (range over both benchmarks), and the model's error (predicted over measured gain, minus 1) with
 $c_l$ from the link bandwidth (all answers) or from the 4-token run (64 and 512 tokens). Upper
-rows: RTX 4500 Ada; lower rows: A100.}
+rows: RTX 4500 Ada; lower rows: A100 (QwQ 32B on two).}
 \label{tab:reuse}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -248,8 +246,9 @@ not needed.
 \textbf{Real system.} On real vLLM with Qwen2.5-0.5B, removing the memory pressure altogether raised
 throughput by only 5.9\%, and vLLM's native CPU tier lowered it by 3.9\%: it cut recomputation by
 only 34\% while writing KV through to the CPU; with DeepSeek-R1-Distill-Qwen-1.5B, $R/\rho$ bounds the
-gain at 2\%. On an A100 with DeepSeek-R1-Distill-Llama-8B and 400 Bailian requests, the CPU tier
-removed two thirds of the recomputed tokens and changed throughput by $-0.3$ and $+0.3\%$.
+gain at 2\%. With 400 Bailian requests on A100s, the CPU tier removed half to two thirds of the
+recomputed tokens yet changed throughput by $-0.3$ and $+0.3\%$ for DeepSeek-R1-Distill-Llama-8B and
+by $+0.1$ and $+1.9\%$ for QwQ-32B on two GPUs.
 
 \section{When Does a Tier Pay?}
 \label{sec:pays}
@@ -283,7 +282,7 @@ for preempted KV in reasoning traffic.
 
 The step-time model is calibrated on profiles up to 4K tokens on H100 (16K on A100) and extrapolated
 with the roofline beyond; MLA and MoE timings are not validated against measurements; the preemption
-simulations do not model prompts shared across requests. The real-vLLM tests use 0.5B to 30B models, each on one GPU (Gemma-3's
+simulations do not model prompts shared across requests. The real-vLLM tests use 0.5B to 32B models on one or two GPUs (Gemma-3's
 sliding-window layers did not fit the fixed GPU cache). On the reasoning trace the simulator's LRU tier removes 99.7\% of the recomputed tokens, where
 vLLM's removes 43\%, so simulated tier gains are upper bounds.
 

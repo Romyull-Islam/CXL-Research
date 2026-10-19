@@ -151,3 +151,8 @@ Recompute: 808 and 806 tok/s, 225 preemptions, R = 0.34. CPU tier: 806 and 809 t
 0.10 (66 to 71% of recomputed tokens removed). Gain -0.3% and +0.3%; the bound R/rho with rho 5.7 to
 28 (microbenchmark at 2K to 16K context) is 1.2 to 6%. A first rep 1 (-8.7%) overlapped another
 user's jobs on GPU 0 and was rerun on GPU 1 (analysis/rerun_rep.sh).
+
+QwQ-32B over two A100s (tensor parallel), same 400 Bailian requests, GPU KV 19,902 blocks (318K
+tokens): recompute 436.7 and 436.8 tok/s (287 preemptions, R = 0.39); CPU tier 437.1 and 445.1 tok/s
+(R = 0.20 and 0.23). Gain +0.1% and +1.9%; R/rho with rho 4.0 to 18.5 bounds it at 2 to 10% for an
+ideal tier. results/a100/run_QwQ-32B_tp2_bailian.json.

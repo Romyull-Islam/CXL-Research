@@ -68,3 +68,14 @@ python analysis/reuse_validate.py report). Pinned host-to-GPU bandwidth 21.1 to 
   models (summary.csv column error_insitu).
 - Microbenchmark at full cache (prefill vs decode): rho 6 to 33 for 8B and 14B, 13 to 42 for Qwen3;
   prefill reaches 82 to 83% of A100 peak BF16 linear-layer FLOP/s at 2K tokens, 61 to 62% at 16K.
+
+## QwQ-32B over two A100s (2026-10-19)
+
+Tensor parallel over GPUs 0 and 1 (analysis/run_a100.sh 0,1 Qwen/QwQ-32B --preemption). Host-to-GPU
+bandwidth measured with both GPUs copying at once: 25.9 GB/s, the same as one GPU (the two share a
+host link), so c_l = 262,144 B / 25.9 GB/s = 10.1 us. Microbenchmark: c_r 150 to 183 us, rho 4.0 (2K),
+11.7 (8K), 18.5 (16K).
+- Gains 22 to 332%. With c_l from the bandwidth the error is -0.7 to +3.2% (one of 48 cases
+  under-predicts); with c_l from the 4-token run, -8 to -4%: the recompute run costs 4% more per token
+  than the microbenchmark (cross-GPU communication), and loading takes 1.9 to 2.1 times bytes/bandwidth.
+- Across all eight models: c_l in place gives -8 to +4% (dense) and 0 to +18% (MoE).

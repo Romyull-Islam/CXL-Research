@@ -7,7 +7,7 @@ which venue tier it can realistically reach and what work remains.
 
 | Folder | Project | Novelty | Realistic target | State (2026-10-18) |
 |---|---|---|---|---|
-| 1-tts-cxl-tiering | Keeping preempted KV of reasoning workloads in a CXL tier | mechanism already shipped | IEEE CAL letter | gate 2 failed for preempted KV (2 to 10% gain); 4-page letter, model tested on real vLLM with seven models of four architectures on two GPUs (RTX 4500 Ada, A100) |
+| 1-tts-cxl-tiering | Keeping preempted KV of reasoning workloads in a CXL tier | mechanism already shipped | IEEE CAL letter | gate 2 failed for preempted KV (2 to 10% gain); 4-page letter, model tested on real vLLM with eight models of four architectures, 1B to 32B, on RTX 4500 Ada and A100 GPUs |
 | 2-hybrid-cxl-kv-endurance | Endurance and provisioning of hybrid DRAM-over-NAND CXL KV caches | narrow but present | ACM TOS | paper draft done; key effects checked on a real NVMe drive |
 | 3-parked-loads | Full/empty parked loads for multi-host CXL | novel in CXL, small latency gain, large bandwidth gain | IEEE CAL letter | model-checked (TLA+) and gem5-evaluated; 4-page letter done |
 

@@ -24,7 +24,7 @@ WL = {"bailian": "Bailian", "bo1": "best-of-1", "bo16": "best-of-16", "bo64": "b
 NAMES = {"DeepSeek-R1-Distill-Qwen-1.5B": ("Qwen2", "Qwen2 1.5B"), "DeepSeek-R1-Distill-Qwen-7B": ("Qwen2", "Qwen2 7B"),
          "Llama-3.2-1B-Instruct": ("Llama", "Llama 1B"), "granite-3.1-1b-a400m-instruct": ("MoE", "Granite MoE 1B"),
          "DeepSeek-R1-Distill-Llama-8B": ("Llama", "Llama 8B"), "DeepSeek-R1-Distill-Qwen-14B": ("Qwen2", "Qwen2 14B"),
-         "Qwen3-30B-A3B": ("MoE", "Qwen3 MoE 30B")}
+         "Qwen3-30B-A3B": ("MoE", "Qwen3 MoE 30B"), "QwQ-32B": ("Qwen2", "QwQ 32B")}
 GCOL = {"RTX 4500 Ada": "#CC79A7", "A100": "#009E73"}   # Okabe-Ito
 
 
@@ -156,7 +156,7 @@ def teaser():
     ax.set_ylabel("observed gain (%)")
     ax.text(1.3, 300, "line: predicted = observed;\nband: within 20%", fontsize=6, va="top")
     ax.legend(loc="lower right", fontsize=6.5, handletextpad=0.2, borderaxespad=0.2)
-    ax.text(1.3, 120, "filled: dense\nhollow: mixture of experts", fontsize=6.5, va="top")
+    ax.text(1.3, 95, "filled: dense\nhollow: mixture of experts", fontsize=6.5, va="top")
     ax.grid(alpha=0.3, lw=0.4)
     fig.tight_layout(pad=0.3)
     fig.savefig(HERE / "fig_teaser.pdf", bbox_inches="tight", pad_inches=0.02)
