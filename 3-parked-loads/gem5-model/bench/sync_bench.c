@@ -30,6 +30,8 @@
  *   rpc     client|server      PROTO ITERS SERVICE_NS
  *   barrier ID NHOSTS PROTO ITERS                  central barrier, host 0 is the master
  *   rtt     -  -  ITERS                              idle round trip of a poll
+ *   wb      -  -  ITERS                              writer side: line store + clflushopt + mfence
+ *                                                    (built with -DCAL only, for calibrate_native.py)
  *   tenant  ID -  US MB                             streaming reads of DATA for US microseconds
  *   waiter  ID PROTO ITERS                          waits for ITERS messages on a private flag
  *   poster  ID PROTO ITERS MEAN_NS N                posts to waiters ID..ID+N-1, each message
@@ -48,6 +50,48 @@
 #define SYNC0WB ((volatile uint8_t *)0x130000000000ULL)
 #define LINE 64
 #define PAGE 4096   /* every sync line sits on its own page, out of reach of prefetchers */
+
+#ifdef NATIVE
+/* Real-machine build (calibration of the software protocols, flush and lines only): the regions
+   are one POSIX shared-memory file mapped at the same addresses; run every process under
+   numactl --membind so the memory sits on another socket's node. SB_SHM names the file and SB_N
+   the number of processes, which meet at a start barrier before the test. */
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#define REG_DATA (256u << 20)
+#define REG_SYNC (16u << 20)
+
+static void native_map(void)
+{
+    const char *name = getenv("SB_SHM") ? getenv("SB_SHM") : "/sync_bench";
+    size_t total = REG_DATA + 3 * (size_t)REG_SYNC + 4096;
+    int fd = shm_open(name, O_RDWR | O_CREAT, 0600);
+    if (fd < 0 || ftruncate(fd, total)) {
+        perror("shm");
+        exit(1);
+    }
+    struct { volatile uint8_t *at; size_t len, off; } r[] = {
+        {DATA, REG_DATA, 0}, {SYNC0, REG_SYNC, REG_DATA}, {SYNC1, REG_SYNC, REG_DATA + REG_SYNC},
+        {SYNC0WB, REG_SYNC, REG_DATA + 2 * (size_t)REG_SYNC}};
+    for (int i = 0; i < 4; i++)
+        if (mmap((void *)r[i].at, r[i].len, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED_NOREPLACE,
+                 fd, r[i].off) != (void *)r[i].at) {
+            perror("mmap");
+            exit(1);
+        }
+    volatile uint64_t *ctl = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, total - 4096);
+    long n = getenv("SB_N") ? atol(getenv("SB_N")) : 2;
+    __atomic_fetch_add(ctl, 1, __ATOMIC_SEQ_CST);
+    while (*ctl < (uint64_t)n)
+        ;
+}
+#endif
+
+#ifdef NATIVE
+static int native_skipped;
+static long native_drops;
+#endif
 
 static inline uint64_t now_ns(void)
 {
@@ -136,7 +180,11 @@ static inline void reset_flag(const char *proto, unsigned f)
 static inline uint64_t wait_flag(const char *proto, unsigned f, uint64_t v, int consume)
 {
     uint64_t polls = 0, cap = backoff_cap(proto), d = 64;
+#ifdef NATIVE
+    while (read_flag(proto, f, consume) < v) {
+#else
     while (read_flag(proto, f, consume) != v) {
+#endif
         polls++;
         if (cap)
             backoff(cap, &d);
@@ -161,6 +209,10 @@ static uint64_t recv_payload(volatile uint8_t *buf, size_t size, uint64_t seq)
     uint64_t t = 0;
     for (size_t i = 0; i < size; i += LINE) {
         if (((volatile uint64_t *)(buf + i))[0] != seq) {
+#ifdef NATIVE
+            native_skipped = 1;   /* overrun while descheduled: drop this sample */
+            return 0;
+#endif
             fprintf(stderr, "payload mismatch at %zu: %lu vs %lu\n", i,
                     ((volatile uint64_t *)(buf + i))[0], seq);
             exit(2);
@@ -208,7 +260,11 @@ static uint64_t poll_lines(volatile uint8_t *buf, size_t size, uint64_t seq)
         flush_range(buf, size);
         int ok = 1;
         for (size_t i = 0; i < size; i += LINE)
+#ifdef NATIVE
+            ok &= ((volatile uint64_t *)(buf + i))[0] >= seq;
+#else
             ok &= ((volatile uint64_t *)(buf + i))[0] == seq;
+#endif
         if (ok)
             return polls;
     }
@@ -228,6 +284,9 @@ int main(int argc, char **argv)
         return 1;
     }
     const char *test = argv[1], *role = argv[2], *proto = argv[3];
+#ifdef NATIVE
+    native_map();
+#endif
     long iters = atol(argv[4]);
     long arg = argc > 5 ? atol(argv[5]) : 0;
     for (const char *c = argv[2]; *c; c++)
@@ -251,6 +310,7 @@ int main(int argc, char **argv)
             }
         } else {
             double sum = 0, polls = 0;
+            long samples = 0;
             for (long i = 1; i <= iters; i++) {
                 uint64_t t0, t1 = 0;
                 if (proto[0] == 'w') {
@@ -259,6 +319,11 @@ int main(int argc, char **argv)
                     polls += r - 1;
                 } else if (proto[0] == 'l') {
                     polls += poll_lines(msg, size, i);
+#ifdef NATIVE
+                    for (size_t k = 0; k < size; k += LINE)
+                        if (((volatile uint64_t *)(msg + k))[0] != (uint64_t)i)
+                            native_skipped = 1;
+#endif
                     t0 = ((volatile uint64_t *)msg)[1];
                 } else {
                     polls += wait_flag(proto, 0, i, 1);
@@ -266,11 +331,26 @@ int main(int argc, char **argv)
                 }
                 if (!t1)
                     t1 = now_ns();
-                if (i > 2)
+#ifdef NATIVE
+                if (native_skipped) {
+                    native_skipped = 0;
+                    native_drops++;
+                    i = (long)((volatile uint64_t *)msg)[0];   /* resynchronize */
+                    continue;
+                }
+#endif
+                if (i > 2) {
                     sum += t1 - t0;
+                    samples++;
+                }
             }
+#ifdef NATIVE
+            printf("RESULT test=oneway proto=%s size=%zu iters=%ld lat_ns=%.1f polls=%.1f drops=%ld\n",
+                   proto, size, samples, sum / samples, polls / iters, native_drops);
+#else
             printf("RESULT test=oneway proto=%s size=%zu iters=%ld lat_ns=%.1f polls=%.1f\n",
                    proto, size, iters, sum / (iters - 2), polls / iters);
+#endif
         }
     } else if (!strcmp(test, "rpc")) {
         if (!strcmp(role, "server")) {
@@ -357,6 +437,20 @@ int main(int argc, char **argv)
             sink += read_flag("flush", 4, 0);
         double fl = (double)(now_ns() - t0) / iters;
         printf("RESULT test=rtt uc_ns=%.1f flush_ns=%.1f sink=%lu\n", uc, fl, sink);
+#ifdef CAL
+    } else if (!strcmp(test, "wb")) {
+        /* writer side: store a whole line, clflushopt + mfence, i.e. the time until the line has
+           left the writer's cache (on a non-coherent device, until another host can read it) */
+        volatile uint64_t *p = (volatile uint64_t *)(DATA_FLAGS + 8 * (size_t)PAGE);
+        uint64_t t0 = now_ns();
+        for (long i = 0; i < iters; i++) {
+            for (int k = 0; k < 8; k++)
+                p[k] = (uint64_t)i;
+            _mm_clflushopt((void *)p);
+            _mm_mfence();
+        }
+        printf("RESULT test=wb wb_ns=%.1f\n", (double)(now_ns() - t0) / iters);
+#endif
     } else if (!strcmp(test, "tenant")) {
         /* stream reads of a private buffer for ITERS microseconds of simulated time */
         size_t bytes = (size_t)arg << 20;

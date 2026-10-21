@@ -292,7 +292,11 @@ times more than the device ever reads back. Second-hit and oracle admission cut 
 times, most for the API trace, where only 6\% of blocks are reused. Per node, small models write
 the most (1.6 to 2.3 times Llama-3.1-70B): their nodes prefill 9.3 times as many tokens, which
 outweighs their 5.7 times smaller KV. MLA writes 2.5 to 2.9 times less than Llama-3.1-70B: its KV is
-4.7 times smaller, but its node prefills 1.9 times as many tokens.
+4.7 times smaller, but its node prefills 1.9 times as many tokens. HBFlex derives 8.4\,TB/day per GPU
+for DeepSeek-V3 from DeepSeek's reported daily tokens and finds raw writes within a 100K-cycle HBF
+budget, leaving garbage collection as the main concern~\cite{hbflex}; our node writes 35 to
+40\,TB/day per GPU for that model at full prefill duty and 10.5 to 12 at 30\%, since writes scale
+with duty, and TLC's 1,000 cycles leave far less room than HBF's 100K.
 
 \begin{figure}[t]
 \centering
@@ -345,7 +349,8 @@ with TRIM. CXL.mem has no TRIM, so freed blocks stay valid in the FTL until the 
 addresses, and write amplification rises to 5.2, 2.5 times the TRIM case. HBFlex reports an
 average of about 30 for DeepSeek-V4-Pro KV pages of mixed lifetimes sharing HBF erase
 blocks~\cite{hbflex}; the mechanism is the same, on a different device, model and mapping
-granularity. Lee et al.\ argue for TRIM in CXL memory in general and, with an analytical model
+granularity. Lachesis assumes a write amplification of 1.02, the value it attributes to prior
+work~\cite{lachesis}; for request-scoped KV that understates flash writes 2.1 to 5.2 times. Lee et al.\ argue for TRIM in CXL memory in general and, with an analytical model
 validated in an FTL simulator, estimate a write-amplification cut of up to 19.7\% for Azure VM
 traces at 10\% spare space~\cite{trimcxl}; for request-scoped KV the cut is 60\%, because whole
 requests die at once. NVMe SSDs can also separate lifetimes with lifecycle-aware placement, which
@@ -582,8 +587,8 @@ device, whose DRAM cache and missing TRIM change both the write stream and its a
 
 \textbf{KV caches on hybrid CXL memory.} HyMCache~\cite{hymcache}, ITME~\cite{itme},
 TempoKV~\cite{tempokv} and LM-CXD~\cite{lmcxd} build KV caches on CXL-attached flash and evaluate
-latency and throughput. Two studies measure CMM-H~\cite{cmmh,cmmh_hs}, and Cylon emulates CXL-attached
-SSDs~\cite{cylon}.
+latency and throughput. Three studies measure CMM-H~\cite{cmmh,cmmh_hs,huen_cal}, the last with vLLM
+and LMCache, and Cylon emulates CXL-attached SSDs~\cite{cylon}.
 
 \textbf{Flash management.} Greedy garbage collection under uniform writes has closed
 forms~\cite{desnoyers,vanhoudt}, and MQSim simulates multi-queue SSDs~\cite{mqsim}. Lee et al.\

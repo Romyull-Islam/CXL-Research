@@ -79,3 +79,31 @@ host link), so c_l = 262,144 B / 25.9 GB/s = 10.1 us. Microbenchmark: c_r 150 to
   under-predicts); with c_l from the 4-token run, -8 to -4%: the recompute run costs 4% more per token
   than the microbenchmark (cross-GPU communication), and loading takes 1.9 to 2.1 times bytes/bandwidth.
 - Across all eight models: c_l in place gives -8 to +4% (dense) and 0 to +18% (MoE).
+
+## Agent sessions (2026-10-20/21)
+
+24 real SWE-agent sessions (nebius/SWE-agent-trajectories, swe-agent-llama-70b, submitted, first 24 by
+instance_id with at least 8 model turns; 668 turns, contexts up to 24,576 tokens, recorded output
+lengths up to 512), DeepSeek-R1-Distill-Llama-8B on one A100, GPU cache 8,192 blocks (131K tokens,
+about a third of the sessions' final context), CPU tier 59.5 GB. Round k submits every session's k-th
+turn (reuse_validate.py --bench agent). Data: data/agent/swe0.parquet (not in git).
+- Clean run on GPU 2 (other processes at 0% SM throughout, nvidia-smi pmon): ideal 274.4/274.6 s,
+  recompute 311.7/312.0 s, CPU tier 279.9/280.1 s. Gain 11.4%; R = 6.2, rho = 53.
+- Model: 10.9% with c_l from the bandwidth (error -4%); -9% with c_l from the same model's docqa
+  4-token run (nothing fitted to the agent runs).
+- R is 6.2, not the ~115 an always-evicted context would give: a third of the contexts fit, and late
+  rounds have few sessions.
+- A first run on GPU 3 shared with another user's job (up to 33% SM) was inconsistent (rep 0 ideal
+  487 s slower than CPU tier 352 s); kept as runs_gpu3_contended.json and not used.
+
+## MoE diagnosis (2026-10-21)
+
+Step logs (STEPLOG, results/steps/, analysis/step_fit.py) for docqa, recompute and CPU tier, answers of
+4 and 512 tokens, Qwen3-30B-A3B and DeepSeek-R1-Distill-Llama-8B, one run each on GPU 2 (idle).
+- A linear fit of step time to prefill tokens and decoding requests explains little (R^2 0.11 to
+  0.68): the time between scheduler calls is a poor proxy for a step's GPU time, so the fit cannot
+  resolve the per-token costs. Not used.
+- Run-to-run: Qwen3 at 512 tokens measured recompute 150.6 s and CPU tier 132.9 s, a gain of 13.3%,
+  against 149.9 and 134.6 s (11.4%, spread 0.4% between its two reps) in the earlier runs. With the
+  in-place c_l the prediction is about 13.4%, so the +18% error is within day-to-day variation of
+  the CPU-tier run. Llama-8B repeated its earlier gain (19.5%). In P1 as one clause.

@@ -22,6 +22,9 @@ items.
     PROJECT.md                       everything: idea, gap, goal, motivation, related work, evidence, plan
     tla/                             TLA+ model of the five rules and the TLC runner (results.csv)
     gem5-model/                      gem5 device model (src/), multi-host config, x86 benchmark, results
+    gem5-model/calibrate_native.py   gem5 against the same programs on a two-socket server (results/native/)
+    rtl/                             table logic in Amaranth, reference test, Yosys/NanGate45 synthesis and timing
+    cacti/                           SRAM area and access time (CACTI 7)
     model/                           first-order model and SimPy multi-host simulation (cross-check)
     paper/                           CAL letter (parked_loads.tex) and figures
     notes/idea-search-2026-10.md     the 16 ideas checked on 2026-10-08 and why this one was chosen
@@ -36,4 +39,7 @@ items.
     python3 model/run_table.py                  parked-table size and overflow
     python3 tla/run_tlc.py                      model checking (needs Java; see tla/README.md)
     see gem5-model/README.md for building gem5 and running run_gem5.py
+    native calibration: build bench/sync_bench.c with -DNATIVE on a two-socket machine and run
+      gem5-model/results/native/run_native.sh; then python3 gem5-model/calibrate_native.py report
+    see rtl/README.md for the table logic
     python3 paper/figures.py && (cd paper && tectonic parked_loads.tex)

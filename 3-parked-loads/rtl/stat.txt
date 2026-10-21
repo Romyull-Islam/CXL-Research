@@ -1,0 +1,47 @@
+
+6. Printing statistics.
+
+=== parked_row ===
+
+        +----------Local Count, excluding submodules.
+        |        +-Local Area, excluding submodules.
+        |        | 
+     8018        - wires
+    12314        - wire bits
+       39        - public wires
+     4152        - public wire bits
+        4        - ports
+     1333        - port bits
+     8167  1.3E+04 cells
+        1        -   $scopeinfo
+      769  818.216   AND2_X1
+       37    49.21   AND3_X1
+       12   19.152   AND4_X1
+      417   554.61   AOI211_X1
+      631  671.384   AOI21_X1
+      163   216.79   AOI22_X1
+      250    199.5   BUF_X1
+       27   21.546   CLKBUF_X1
+     1331 6.02E+03   DFF_X1
+      814  433.048   INV_X1
+      636  507.528   NAND2_X1
+      144  153.216   NAND3_X1
+       72    95.76   NAND4_X1
+     1030   821.94   NOR2_X1
+      181  192.584   NOR3_X1
+       63    83.79   NOR4_X1
+      112   148.96   OAI211_X1
+      575    611.8   OAI21_X1
+      107  170.772   OAI221_X1
+      176   234.08   OAI22_X1
+       87   92.568   OR2_X1
+       34    45.22   OR3_X1
+       12   19.152   OR4_X1
+      281  448.476   XNOR2_X1
+      205   327.18   XOR2_X1
+
+   Area for cell type $scopeinfo is unknown!
+
+   Chip area for module '\parked_row': 12955.264000
+     of which used for sequential elements: 6018.782000 (46.46%)
+

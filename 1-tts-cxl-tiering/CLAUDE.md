@@ -22,7 +22,9 @@ Does a KV Memory Tier Pay? A First-Order Model for LLM Serving"). Model: gain = 
 architectures (Qwen2 1.5B/7B/14B, QwQ-32B on two GPUs, Llama 1B/8B, Granite MoE, Qwen3-30B-A3B MoE) on
 an RTX 4500 Ada and A100s; gains 6 to 372%; with c_l from the link bandwidth the model errs by -1 to
 +12% (dense) and +12 to +33% (MoE). The error is in the load term (the tier costs 1.7 to 5.6x bytes/bandwidth); with
-c_l measured in the 4-token run, -8 to +4% (dense) and 0 to +18% (MoE). Applied to preempted KV: 2 to
+c_l measured in the 4-token run, -8 to +4% (dense) and 0 to +18% (MoE; the +18% is within
+run-to-run variation). Agent sessions (24 real SWE-agent traces, Llama 8B, A100): +11.4% measured,
++10.9% predicted. Applied to preempted KV: 2 to
 10% simulated; real vLLM -4 to +2% (0.5B on the RTX 4500; on A100s 8B: -0.3 and +0.3%, QwQ-32B on two: +0.1 and +1.9%).
 If revisited, the only open regime is offline best-of-N (RL rollouts, evaluation) on large-HBM
 nodes with FP8 KV, where vLLM's LRU offload tier would need 2 to 4x HBM KV for a 5 to 8% gain.

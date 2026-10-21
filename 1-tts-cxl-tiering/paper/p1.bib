@@ -1,3 +1,9 @@
+@IEEEtranBSTCTL{IEEEexample:BSTcontrol,
+  CTLuse_forced_etal       = "yes",
+  CTLmax_names_forced_etal = "3",
+  CTLnames_show_etal       = "1"
+}
+
 % p1.bib: short paper on keeping preempted KV off-GPU for reasoning workloads
 % Verified 2026-10-09 against arXiv API, Crossref, usenix.org, PMLR, MLSys proceedings, HF, GitHub.
 
@@ -310,4 +316,45 @@
   month        = jan,
   howpublished = {vLLM blog},
   url          = {https://vllm.ai/blog/2026-01-08-kv-offloading-connector}
+}
+
+@misc{sweagent_traj,
+  author       = {{Nebius}},
+  title        = {{SWE-agent} Trajectories},
+  howpublished = {Hugging Face dataset nebius/SWE-agent-trajectories, CC-BY-4.0},
+  year         = {2024},
+  note         = {Accessed 2026-10-20}
+}
+
+@misc{ibrahim_kv,
+  author       = {Muhammad Ibrahim},
+  title        = {When the {KV} Cache Is Slower Than the {GPU}: Scaling Remote {KV} Tiers for Context-Parallel Prefill},
+  year         = {2026},
+  howpublished = {arXiv:2610.21500}
+}
+
+@misc{misat,
+  author       = {Zetao Hong and Song Yuan and Yuanhao Ding and Yibo Zhu and Daxin Jiang and Zhibin Wang and Chen Tian},
+  title        = {Scheduling Mixed {RL} Rollouts Beyond Prefix Locality},
+  year         = {2026},
+  howpublished = {arXiv:2608.11152}
+}
+
+@misc{vllmtiered,
+  author       = {Or Ozeri and Danny Harnik and Ronen Schaffer and Itay Etelis and Varun Sundar Rabindranath},
+  title        = {Tiered {KV} Cache Offloading in {vLLM}},
+  year         = {2026},
+  month        = sep,
+  howpublished = {vLLM blog},
+  url          = {https://vllm.ai/blog/2026-09-10-tiered-kv-offloading}
+}
+
+@article{huen_cal,
+  author  = {Kwan Huen and Gongjin Sun and Mehdi Nik and Caroline Kahn and Elham Movahedian and Senthil Murugesapandian and Michael Wasef and Shuyu Lyu and Dongyang Li and Edmund Au and Brian Luu and Jason Scott and Ranjitha Gopalakrishna and Namita Kumar and Amir Beygi and Vitorio Cargnini and Ramdas Kachare},
+  title   = {{LLM} {KV} Cache Storage Using {CXL} Memory},
+  journal = {IEEE Computer Architecture Letters},
+  volume  = {25},
+  number  = {2},
+  pages   = {319--322},
+  year    = {2026}
 }

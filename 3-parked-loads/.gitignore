@@ -17,4 +17,5 @@ tla/states/
 tla/*_TTrace_*
 gem5-model/runs/
 gem5-model/bench/sync_bench
+gem5-model/bench/sync_bench_cal
 gem5-model/sweep_done.txt

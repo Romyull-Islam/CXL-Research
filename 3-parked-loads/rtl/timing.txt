@@ -1,0 +1,1 @@
+cells 8166 (flip-flops 1331), area 12955 um2 (flip-flops 6019, logic 6936), critical path 1.199 ns over 24 cells, fmax 0.83 GHz

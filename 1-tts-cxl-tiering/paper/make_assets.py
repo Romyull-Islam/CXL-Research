@@ -170,7 +170,7 @@ def capacity():
     full = s[s.policy == "swap"].set_index(["deploy", "wname"]).throughput
     k = list(zip(c.deploy, c.wname))
     c["kept"] = (c.throughput.values / rec.loc[k].values - 1) / (full.loc[k].values / rec.loc[k].values - 1)
-    fig, ax = plt.subplots(figsize=(3.5, 1.7))
+    fig, ax = plt.subplots(figsize=(3.5, 1.55))
     for (w, pol), g in c.groupby(["wname", "policy"]):
         m = g.groupby("tier_mult").kept.median()
         ax.plot(m.index, m.values * 100, ls="-" if pol == "swap" else "--",
@@ -203,13 +203,19 @@ def reuse_table():
         if lines:
             lines.append("\\midrule")
         for m, (_, name) in NAMES.items():
-            g = d[(d.gpu == gpu) & (d.model == m)]
+            g = d[(d.gpu == gpu) & (d.model == m) & (d.bench != "agent")]
             if g.empty:
                 continue
             gains = " / ".join(rng(g[g.out == o].gain_measured, lambda v: f"{v * 100:.0f}", "--")
                                for o in sorted(g.out.unique()))
             lines.append(f"{name} & {gains} & {rng(g.error)} & "
                          f"{rng(g[g.out > g.out.min()].error_insitu)} \\\\")
+    ag = d[d.bench == "agent"]
+    if len(ag):
+        lines.append("\\midrule")
+        for _, r in ag.iterrows():
+            lines.append(f"{NAMES[r.model][1]}, agents & {r.gain_measured * 100:.0f} ($R={r.R:.1f}$) & "
+                         f"{pct(r.error)} & {pct(r.error_insitu)} \\\\")
     body = "\n".join(x.replace("--", "\x00").replace("-", "$-$").replace("\x00", "--") for x in lines)
     head = ("\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n & measured gain (\\%) & \\multicolumn{2}{c}{error (\\%), $c_l$ from} "
             "\\\\\nmodel & 4 / 64 / 512 tokens & bandwidth & 4-token run \\\\\n\\midrule\n")

@@ -4,7 +4,9 @@ Workload: D documents, Q questions per document, answers of `out` tokens, all su
 round-robin order over documents, so a document's KV has left a small GPU cache before its next
 question. Two benchmarks: docqa (16 random-token documents of 4,096 tokens, a distinct 32-token
 suffix per question) and longbench (16 real LongBench documents of 1,500 to 4,000 words from five
-tasks, eight real questions each). Three configurations:
+tasks, eight real questions each). A third, agent, replays real SWE-agent sessions (agent_sessions):
+round k submits every session's k-th model turn at once, with the conversation so far as the prompt,
+so a session's context leaves the GPU cache while the other sessions run. Three configurations:
   ideal       GPU KV cache large enough for every document (no recomputation)
   recompute   small GPU KV cache, evicted documents are recomputed
   cpu_offload the same small cache plus vLLM's native CPU offloading tier
@@ -23,6 +25,7 @@ the model then predicts the tier's gain, R (c_r - c_l) / (c_d + R c_l) with R = 
 compared with the measured gain T_recompute / T_offload - 1.
 
   python analysis/reuse_validate.py run --model M --bench docqa --outs 4 64 512 --reps 2
+  python analysis/reuse_validate.py run --model M --bench agent --outs 0 --reps 2
   python analysis/reuse_validate.py report         all models and benchmarks into summary.csv
 """
 import argparse
@@ -44,6 +47,8 @@ LONGBENCH = Path(os.environ.get("LONGBENCH_DIR", Path.home() / (
     ".cache/huggingface/hub/datasets--zai-org--LongBench/snapshots/"
     "5e628be450b7e67fb7ae6e201bd6d8f7056f7672/longbench_extracted/data")))
 LB_TASKS = {"qasper": 4, "multifieldqa_en": 3, "2wikimqa": 3, "gov_report": 3, "lcc": 3}
+AGENT = Path(os.environ.get("AGENT_DIR", ROOT / "data" / "agent"))   # nebius/SWE-agent-trajectories shard
+AG_SESSIONS, AG_MAXCTX, AG_MAXOUT, AG_BLOCKS = 24, 24576, 512, 8192   # 8,192 blocks: 131K tokens
 
 
 def short(model):
@@ -68,17 +73,51 @@ def _longbench_docs(model):
     return docs, questions
 
 
+def agent_sessions(model):
+    """Real SWE-agent sessions (swe-agent-llama-70b, submitted, by instance_id): the first AG_SESSIONS
+    with at least 8 model turns. Each model turn is a call whose prompt is every earlier message,
+    tokenized message by message with the model's tokenizer so that each prompt extends the previous
+    one; its output length is the recorded turn's (at most AG_MAXOUT). A session ends before the call
+    whose context would exceed AG_MAXCTX. Returns, per session, the list of (prompt ids, out)."""
+    import pandas as pd
+    from transformers import AutoTokenizer
+    tok = AutoTokenizer.from_pretrained(model)
+    d = pd.read_parquet(AGENT / "swe0.parquet")
+    d = d[(d.model_name == "swe-agent-llama-70b") & d.exit_status.str.startswith("submitted")]
+    sessions = []
+    for _, r in d.sort_values("instance_id").iterrows():
+        ids, calls = [], []
+        for m in r.trajectory:
+            text = m["system_prompt"] if m["role"] == "system" and m["system_prompt"] else m["text"]
+            t = tok(f"\n<{m['role']}>\n{text}", add_special_tokens=False)["input_ids"]
+            if m["role"] == "ai":
+                out = min(len(t), AG_MAXOUT)
+                if len(ids) + out > AG_MAXCTX:
+                    break
+                calls.append((list(ids), out))
+            ids += t
+        if len(calls) >= 8:
+            sessions.append(calls)
+        if len(sessions) == AG_SESSIONS:
+            break
+    return sessions
+
+
 def workload(out, bench="docqa", model=None):
     """Prompts in submission order and the document token lengths."""
     import numpy as np
     rng = np.random.default_rng(1)
+    if bench == "agent":
+        sessions = agent_sessions(model)
+        rounds = [[s[k] for s in sessions if k < len(s)] for k in range(max(map(len, sessions)))]
+        return rounds, None, [len(p) for s in sessions for p, _ in s], [len(s[-1][0]) + s[-1][1] for s in sessions]
     if bench == "docqa":
         docs = [rng.integers(1000, 30000, L).tolist() for _ in range(D)]
         questions = [[rng.integers(1000, 30000, QLEN).tolist() for _ in range(Q)] for _ in range(D)]
     else:
         docs, questions = _longbench_docs(model)
     prompts = [{"prompt_token_ids": docs[d] + questions[d][q]} for q in range(Q) for d in range(len(docs))]
-    return prompts, [out] * len(prompts), [len(x) for x in docs]
+    return prompts, [out] * len(prompts), [len(x) for x in docs], None
 
 
 def kv_bytes_per_token(model):
@@ -108,21 +147,46 @@ def h2d_bandwidth(ndev=1):
     return 5 * ndev * xs[0].numel() / (time.time() - t0)
 
 
+def _log_steps(path):
+    """STEPLOG=<file>: record every scheduler step (time, prefill tokens, decode tokens, decoding
+    requests), for the step-time regression in analysis/step_fit.py."""
+    from vllm.v1.core.sched import scheduler as vsched
+    steps = []
+    orig = vsched.Scheduler.schedule
+
+    def logged(self, *x, **k):
+        o = orig(self, *x, **k)
+        n = list(o.num_scheduled_tokens.values())
+        steps.append((time.perf_counter(), sum(v for v in n if v > 1), sum(1 for v in n if v == 1)))
+        return o
+    vsched.Scheduler.schedule = logged
+    return steps
+
+
 def one(a):
     box = _count_scheduled()
+    steps = _log_steps(os.environ["STEPLOG"]) if os.environ.get("STEPLOG") else None
     mon = GpuMonitor(os.environ.get("CUDA_VISIBLE_DEVICES", "0"))
     mon.start()
-    prompts, outs, lens = workload(a.out, a.bench, a.model)
+    prompts, outs, lens, final = workload(a.out, a.bench, a.model)
     kvb = kv_bytes_per_token(a.model)
-    offload_gb = a.offload_gb or max(2.0, round(1.3 * sum(lens) * kvb / 2**30 * 2) / 2)
+    held = sum(final) if final else sum(lens)       # tokens the GPU would hold to never recompute
+    offload_gb = a.offload_gb or max(2.0, round(1.3 * held * kvb / 2**30 * 2) / 2)
     extra = dict(kv_offloading_size=offload_gb, kv_offloading_backend="native") \
         if a.config == "cpu_offload" else {}
-    extra["max_model_len"] = 8192          # a request is at most 6,144 + 64 + 512 tokens
-    # ideal: every document plus the running requests fit (the 1.5B docqa runs used 6,144 blocks)
-    a.kv_blocks = (sum(lens) // 16 + 1024) if a.config == "ideal" else SMALL_BLOCKS
+    # documents: a request is at most 6,144 + 64 + 512 tokens; agent calls at most AG_MAXCTX
+    extra["max_model_len"] = AG_MAXCTX + 16 if final else 8192
+    # ideal: every document (session) plus the running requests fit (the 1.5B docqa runs used 6,144 blocks)
+    a.kv_blocks = (held // 16 + 1024) if a.config == "ideal" else (AG_BLOCKS if final else SMALL_BLOCKS)
     llm = _llm(a, **extra)
     box[0] = 0
-    wall, gen = _generate(llm, prompts, outs)
+    if final:
+        wall = gen = 0
+        for rnd in prompts:
+            w, g = _generate(llm, [{"prompt_token_ids": p} for p, _ in rnd], [o for _, o in rnd])
+            wall, gen = wall + w, gen + g
+    else:
+        wall, gen = _generate(llm, prompts, outs)
     mon.stop = True
     res = dict(config=a.config, out=a.out, rep=a.rep, wall_s=wall, gen_tokens=gen, bench=a.bench,
                scheduled_tokens=box[0], num_blocks=_num_blocks(llm), model=a.model, doc_lens=lens, tp=a.tp,
@@ -130,6 +194,9 @@ def one(a):
                gpu_util=[s["util"] for s in mon.samples])
     if a.config == "ideal" and a.out == a.first_out and a.rep == 0:
         res.update(h2d_Bps=h2d_bandwidth(a.tp), kv_bytes_per_token=kvb)
+    if steps is not None:
+        Path(os.environ["STEPLOG"]).write_text(json.dumps(dict(config=a.config, out=a.out, model=a.model,
+                                                               bench=a.bench, steps=steps)))
     print("RESULT " + json.dumps(res), flush=True)
 
 
@@ -235,10 +302,12 @@ def report():
     rep["error"] = rep.gain_predicted / rep.gain_measured - 1
     rep["error_mixed"] = rep.gain_predicted_mixed / rep.gain_measured - 1
     # Load cost in place: the tier's time beyond the ideal cache per loaded token in the shortest-answer
-    # run (decoding negligible, same tokens computed), applied to the longer answers.
+    # run (decoding negligible, same tokens computed), applied to the longer answers; the agent runs
+    # take it from the same model's docqa run, so nothing is fitted to them.
     rep["c_l_insitu_us"] = (rep.T_offload - rep.T_ideal) / rep.X * 1e6
     first = rep.loc[rep.groupby(["model", "bench"]).out.idxmin()].set_index(["model", "bench"]).c_l_insitu_us
-    cl = np.array([first.loc[(m, b)] for m, b in zip(rep.model, rep.bench)]) * 1e-6
+    cl = np.array([first.get((m, "docqa" if b == "agent" else b), np.nan)
+                   for m, b in zip(rep.model, rep.bench)]) * 1e-6
     rep["c_r_insitu_us"] = (rep.T_recompute - rep.T_ideal) / rep.X * 1e6
     rep["error_insitu"] = rep.X * (rep.c_r_us * 1e-6 - cl) / rep.T_offload / rep.gain_measured - 1
     rep.to_csv(OUT / "summary.csv", index=False)
@@ -253,7 +322,7 @@ def main():
     ap.add_argument("--reps", type=int, default=2)
     ap.add_argument("--mem-util", type=float, default=0.6)
     ap.add_argument("--offload-gb", type=float, default=0, help="0: 1.3 times the documents' KV")
-    ap.add_argument("--bench", default="docqa", choices=["docqa", "longbench"])
+    ap.add_argument("--bench", default="docqa", choices=["docqa", "longbench", "agent"])
     ap.add_argument("--config", default="ideal")
     ap.add_argument("--out", type=int, default=4)
     ap.add_argument("--rep", type=int, default=0)

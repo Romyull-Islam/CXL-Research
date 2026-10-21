@@ -1,0 +1,15 @@
+link_delay,test,protocol,arg,ns
+225ns,oneway,flush,64,2632.9
+225ns,oneway,flush,256,2819.4
+225ns,oneway,flush,1024,3276.4
+225ns,oneway,flush,4096,7401.8
+225ns,oneway,lines,64,1446.5
+225ns,oneway,lines,256,1557.2
+225ns,oneway,lines,1024,1946.2
+225ns,oneway,lines,4096,5546.0
+225ns,rpc,flush,0,5484.7
+225ns,rpc,flush,2000,7528.2
+225ns,rpc,flush,10000,15566.1
+225ns,rpc,lines,0,3175.7
+225ns,rpc,lines,2000,5122.4
+225ns,rpc,lines,10000,13105.6
